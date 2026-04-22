@@ -100,10 +100,16 @@ See `SKILL.md` for the full reference and `references/` for prompt-engineering, 
 Clone into your `~/.claude/skills/` directory:
 
 ```bash
-git clone https://github.com/<you>/foundry-image-gen.git ~/.claude/skills/foundry-image-gen
+git clone https://github.com/ianlintner/foundry-image-gen.git ~/.claude/skills/foundry-image-gen
 ```
 
 Claude Code auto-discovers the skill via `SKILL.md`.
+
+### Quickstart prompt for Claude Code
+
+Paste this into a fresh Claude Code session and it will install the skill and walk you through credential setup interactively:
+
+> Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 ## License
 

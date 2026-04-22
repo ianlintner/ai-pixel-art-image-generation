@@ -42,7 +42,14 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 
 ## Quick start
 
-Install dependencies, configure your Azure endpoint, and run any of the cookbook recipes:
+### Let Claude Code install it
+
+Paste this into a Claude Code session and it will clone the skill, install dependencies, and walk you through credential setup:
+
+!!! tip "Quickstart prompt"
+    Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+
+### Manual install
 
 ```bash
 pip install openai azure-identity google-genai pillow rembg onnxruntime

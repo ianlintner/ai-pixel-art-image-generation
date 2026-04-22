@@ -1,5 +1,13 @@
 # Install
 
+## Quickstart: let Claude Code do it
+
+Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
+
+> Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+
+The manual steps below cover the same ground if you prefer to run them yourself.
+
 ## Python dependencies
 
 ```bash
