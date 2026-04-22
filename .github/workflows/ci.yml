@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff
+        run: pip install "ruff>=0.5"
+      - name: Ruff format check
+        run: ruff format --check scripts/
+      - name: Ruff lint
+        run: ruff check scripts/
+
+  smoke:
+    name: Import smoke tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install runtime deps
+        # onnxruntime and rembg are heavy; only install what's needed for
+        # import-smoke coverage. Scripts that import rembg do so lazily.
+        run: |
+          pip install \
+            "openai>=1.0" \
+            "azure-identity>=1.15" \
+            "google-genai>=0.3" \
+            "pillow>=10.0"
+      - name: Import every script module
+        run: |
+          cd scripts
+          python -c "import generate_image"
+          python -c "import generate_sprite"
+          python -c "import generate_tileset"
+          python -c "import generate_animation"
+          python -c "import pixelize"
+          python -c "import qa_report"
+          python -c "import export_tiled"
+          python -c "from lib import azure_client, gemini_client, palettes, qa_metrics, outline, seamless"
+
+  qa-gates:
+    name: QA gates on bundled example assets
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install Pillow only
+        run: pip install "pillow>=10.0"
+      - name: Run qa_report on bundled examples
+        # Re-run the deterministic QA metrics on the committed example
+        # artifacts to guarantee they still pass the hard gates.
+        run: |
+          python scripts/qa_report.py \
+            --input assets/examples/sprite_cat_wizard_128.png \
+            --kind sprite --palette aap64
+          python scripts/qa_report.py \
+            --input assets/examples/sprite_knight_128.png \
+            --kind sprite --palette db32
+          python scripts/qa_report.py \
+            --input assets/examples/tileset_overworld/overworld.png \
+            --kind tileset --palette db32 --tile-size 32 --columns 2
+          python scripts/qa_report.py \
+            --input assets/examples/animation_knight/knight_walk.png \
+            --kind animation --palette db32 --tile-size 64 --frames 4
