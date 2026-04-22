@@ -21,7 +21,8 @@ import argparse
 import io
 import sys
 from pathlib import Path
-from typing import Optional, Tuple, Union
+
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -43,9 +44,7 @@ def _remove_background(img):
     return _load_image(remove(buf.getvalue()))
 
 
-def _load_image(src: Union[bytes, str, Path, "Image.Image"]):
-    from PIL import Image
-
+def _load_image(src: bytes | str | Path | Image.Image):
     if isinstance(src, Image.Image):
         return src.convert("RGBA")
     if isinstance(src, (bytes, bytearray)):
@@ -73,8 +72,6 @@ def _tight_crop_square(img, pad_frac: float = 0.06):
         centred, transparent padding. If img has no opaque pixels, returns
         img unchanged.
     """
-    from PIL import Image
-
     alpha = img.split()[-1]
     bbox = alpha.getbbox()
     if bbox is None:
@@ -97,8 +94,6 @@ def _tight_crop_square(img, pad_frac: float = 0.06):
 
 def _quantize_rgba(img, palette_name: str):
     """Quantize an RGBA image to the palette, preserving alpha."""
-    from PIL import Image
-
     palette_img = build_palette_image(get_palette(palette_name))
 
     rgb = img.convert("RGB")
@@ -118,13 +113,13 @@ def _quantize_rgba(img, palette_name: str):
 def pixelize_image(
     src,
     *,
-    target_size: Union[int, Tuple[int, int]],
+    target_size: int | tuple[int, int],
     palette: str,
     transparent_bg: bool = False,
     outline: str = "none",
     fit_subject: bool = True,
     subject_pad_frac: float = 0.06,
-) -> "Image.Image":
+) -> Image.Image:
     """Run the full pixelize pipeline and return a PIL Image.
 
     Args:
@@ -138,8 +133,6 @@ def pixelize_image(
             of the longer subject dimension). ~6% gives the outline pass a
             pixel or two of margin without wasting frame.
     """
-    from PIL import Image
-
     if isinstance(target_size, int):
         target = (target_size, target_size)
     else:
@@ -160,6 +153,7 @@ def pixelize_image(
 
     if outline != "none":
         from lib.outline import add_outline
+
         img = add_outline(img, mode=outline)
 
     return _quantize_rgba(img, palette)
@@ -169,15 +163,29 @@ def parse_args():
     p = argparse.ArgumentParser(description="Pixelize an image: downscale + palette quantize")
     p.add_argument("--input", required=True, help="Source image path")
     p.add_argument("--output", required=True, help="Output PNG path")
-    p.add_argument("--size", type=int, required=True,
-                   help="Target pixel size (square, e.g. 32 for 32x32)")
-    p.add_argument("--palette", required=True, choices=list_palettes(),
-                   help="Named palette for quantization")
-    p.add_argument("--transparent-bg", action="store_true",
-                   help="Remove background via rembg before downscale")
-    p.add_argument("--outline", default="none",
-                   choices=["none", "palette-darkest"],
-                   help="Optional 1-px dark outline ring (sprites only)")
+    p.add_argument(
+        "--size",
+        type=int,
+        required=True,
+        help="Target pixel size (square, e.g. 32 for 32x32)",
+    )
+    p.add_argument(
+        "--palette",
+        required=True,
+        choices=list_palettes(),
+        help="Named palette for quantization",
+    )
+    p.add_argument(
+        "--transparent-bg",
+        action="store_true",
+        help="Remove background via rembg before downscale",
+    )
+    p.add_argument(
+        "--outline",
+        default="none",
+        choices=["none", "palette-darkest"],
+        help="Optional 1-px dark outline ring (sprites only)",
+    )
     return p.parse_args()
 
 

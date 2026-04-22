@@ -35,18 +35,35 @@ def parse_args():
     p = argparse.ArgumentParser(description="QA metrics for a pixel-art PNG artifact")
     p.add_argument("--input", required=True, help="Path to PNG")
     p.add_argument("--kind", required=True, choices=["sprite", "tileset", "animation"])
-    p.add_argument("--palette", required=True,
-                   help="Palette name (db16/db32/pico8/gameboy/nes/aap64)")
-    p.add_argument("--tile-size", type=int, default=32,
-                   help="Tile size (tileset/animation)")
-    p.add_argument("--columns", type=int, default=None,
-                   help="Columns in sheet (tileset; derived from width if omitted)")
-    p.add_argument("--tile-count", type=int, default=None,
-                   help="Tile count (tileset; derived from dims if omitted)")
-    p.add_argument("--frames", type=int, default=None,
-                   help="Frame count (animation; derived from width if omitted)")
-    p.add_argument("--output-json", default=None,
-                   help="Override JSON sidecar path (default: <input>.qa.json)")
+    p.add_argument(
+        "--palette",
+        required=True,
+        help="Palette name (db16/db32/pico8/gameboy/nes/aap64)",
+    )
+    p.add_argument("--tile-size", type=int, default=32, help="Tile size (tileset/animation)")
+    p.add_argument(
+        "--columns",
+        type=int,
+        default=None,
+        help="Columns in sheet (tileset; derived from width if omitted)",
+    )
+    p.add_argument(
+        "--tile-count",
+        type=int,
+        default=None,
+        help="Tile count (tileset; derived from dims if omitted)",
+    )
+    p.add_argument(
+        "--frames",
+        type=int,
+        default=None,
+        help="Frame count (animation; derived from width if omitted)",
+    )
+    p.add_argument(
+        "--output-json",
+        default=None,
+        help="Override JSON sidecar path (default: <input>.qa.json)",
+    )
     return p.parse_args()
 
 
@@ -97,8 +114,11 @@ def main():
     report["kind"] = args.kind
     report["palette"] = args.palette
 
-    out_json = Path(args.output_json).expanduser().resolve() if args.output_json else \
-        input_path.with_suffix(input_path.suffix + ".qa.json")
+    out_json = (
+        Path(args.output_json).expanduser().resolve()
+        if args.output_json
+        else input_path.with_suffix(input_path.suffix + ".qa.json")
+    )
     out_json.write_text(json.dumps(report, indent=2, default=_default))
 
     print(format_report(report))

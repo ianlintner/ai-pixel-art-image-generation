@@ -16,77 +16,222 @@ Sources:
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Tuple
 
-
-DB16: List[str] = [
-    "#140c1c", "#442434", "#30346d", "#4e4a4e",
-    "#854c30", "#346524", "#d04648", "#757161",
-    "#597dce", "#d27d2c", "#8595a1", "#6daa2c",
-    "#d2aa99", "#6dc2ca", "#dad45e", "#deeed6",
+DB16: list[str] = [
+    "#140c1c",
+    "#442434",
+    "#30346d",
+    "#4e4a4e",
+    "#854c30",
+    "#346524",
+    "#d04648",
+    "#757161",
+    "#597dce",
+    "#d27d2c",
+    "#8595a1",
+    "#6daa2c",
+    "#d2aa99",
+    "#6dc2ca",
+    "#dad45e",
+    "#deeed6",
 ]
 
-DB32: List[str] = [
-    "#000000", "#222034", "#45283c", "#663931",
-    "#8f563b", "#df7126", "#d9a066", "#eec39a",
-    "#fbf236", "#99e550", "#6abe30", "#37946e",
-    "#4b692f", "#524b24", "#323c39", "#3f3f74",
-    "#306082", "#5b6ee1", "#639bff", "#5fcde4",
-    "#cbdbfc", "#ffffff", "#9badb7", "#847e87",
-    "#696a6a", "#595652", "#76428a", "#ac3232",
-    "#d95763", "#d77bba", "#8f974a", "#8a6f30",
+DB32: list[str] = [
+    "#000000",
+    "#222034",
+    "#45283c",
+    "#663931",
+    "#8f563b",
+    "#df7126",
+    "#d9a066",
+    "#eec39a",
+    "#fbf236",
+    "#99e550",
+    "#6abe30",
+    "#37946e",
+    "#4b692f",
+    "#524b24",
+    "#323c39",
+    "#3f3f74",
+    "#306082",
+    "#5b6ee1",
+    "#639bff",
+    "#5fcde4",
+    "#cbdbfc",
+    "#ffffff",
+    "#9badb7",
+    "#847e87",
+    "#696a6a",
+    "#595652",
+    "#76428a",
+    "#ac3232",
+    "#d95763",
+    "#d77bba",
+    "#8f974a",
+    "#8a6f30",
 ]
 
-PICO8: List[str] = [
-    "#000000", "#1d2b53", "#7e2553", "#008751",
-    "#ab5236", "#5f574f", "#c2c3c7", "#fff1e8",
-    "#ff004d", "#ffa300", "#ffec27", "#00e436",
-    "#29adff", "#83769c", "#ff77a8", "#ffccaa",
+PICO8: list[str] = [
+    "#000000",
+    "#1d2b53",
+    "#7e2553",
+    "#008751",
+    "#ab5236",
+    "#5f574f",
+    "#c2c3c7",
+    "#fff1e8",
+    "#ff004d",
+    "#ffa300",
+    "#ffec27",
+    "#00e436",
+    "#29adff",
+    "#83769c",
+    "#ff77a8",
+    "#ffccaa",
 ]
 
-GAMEBOY: List[str] = [
-    "#0f380f", "#306230", "#8bac0f", "#9bbc0f",
+GAMEBOY: list[str] = [
+    "#0f380f",
+    "#306230",
+    "#8bac0f",
+    "#9bbc0f",
 ]
 
-NES: List[str] = [
-    "#7c7c7c", "#0000fc", "#0000bc", "#4428bc",
-    "#940084", "#a80020", "#a81000", "#881400",
-    "#503000", "#007800", "#006800", "#005800",
-    "#004058", "#000000", "#000000", "#000000",
-    "#bcbcbc", "#0078f8", "#0058f8", "#6844fc",
-    "#d800cc", "#e40058", "#f83800", "#e45c10",
-    "#ac7c00", "#00b800", "#00a800", "#00a844",
-    "#008888", "#000000", "#000000", "#000000",
-    "#f8f8f8", "#3cbcfc", "#6888fc", "#9878f8",
-    "#f878f8", "#f85898", "#f87858", "#fca044",
-    "#f8b800", "#b8f818", "#58d854", "#58f898",
-    "#00e8d8", "#787878", "#000000", "#000000",
-    "#fcfcfc", "#a4e4fc", "#b8b8f8", "#d8b8f8",
-    "#f8b8f8", "#f8a4c0", "#f0d0b0", "#fce0a8",
-    "#f8d878", "#d8f878", "#b8f8b8", "#b8f8d8",
-    "#00fcfc", "#f8d8f8", "#000000", "#000000",
+NES: list[str] = [
+    "#7c7c7c",
+    "#0000fc",
+    "#0000bc",
+    "#4428bc",
+    "#940084",
+    "#a80020",
+    "#a81000",
+    "#881400",
+    "#503000",
+    "#007800",
+    "#006800",
+    "#005800",
+    "#004058",
+    "#000000",
+    "#000000",
+    "#000000",
+    "#bcbcbc",
+    "#0078f8",
+    "#0058f8",
+    "#6844fc",
+    "#d800cc",
+    "#e40058",
+    "#f83800",
+    "#e45c10",
+    "#ac7c00",
+    "#00b800",
+    "#00a800",
+    "#00a844",
+    "#008888",
+    "#000000",
+    "#000000",
+    "#000000",
+    "#f8f8f8",
+    "#3cbcfc",
+    "#6888fc",
+    "#9878f8",
+    "#f878f8",
+    "#f85898",
+    "#f87858",
+    "#fca044",
+    "#f8b800",
+    "#b8f818",
+    "#58d854",
+    "#58f898",
+    "#00e8d8",
+    "#787878",
+    "#000000",
+    "#000000",
+    "#fcfcfc",
+    "#a4e4fc",
+    "#b8b8f8",
+    "#d8b8f8",
+    "#f8b8f8",
+    "#f8a4c0",
+    "#f0d0b0",
+    "#fce0a8",
+    "#f8d878",
+    "#d8f878",
+    "#b8f8b8",
+    "#b8f8d8",
+    "#00fcfc",
+    "#f8d8f8",
+    "#000000",
+    "#000000",
 ]
 
-AAP64: List[str] = [
-    "#060608", "#141013", "#3b1725", "#73172d",
-    "#b4202a", "#df3e23", "#fa6a0a", "#f9a31b",
-    "#ffd541", "#fffc40", "#d6f264", "#9cdb43",
-    "#59c135", "#14a02e", "#1a7a3e", "#24523b",
-    "#122020", "#143464", "#285cc4", "#249fde",
-    "#20d6c7", "#a6fcdb", "#ffffff", "#fef3c0",
-    "#fad6b8", "#f5a097", "#e86a73", "#bc4a9b",
-    "#793a80", "#403353", "#242234", "#221c1a",
-    "#322b28", "#71413b", "#bb7547", "#dba463",
-    "#f4d29c", "#dae0ea", "#b3b9d1", "#8b93af",
-    "#6d758d", "#4a5462", "#333941", "#422433",
-    "#5b3138", "#8e5252", "#ba756a", "#e9b5a3",
-    "#e3e6ff", "#b9bffb", "#849be4", "#588dbe",
-    "#477d85", "#23674e", "#328464", "#5daf8d",
-    "#92dcba", "#cdf7e2", "#e4d2aa", "#c7b08b",
-    "#a08662", "#796755", "#5a4e44", "#423934",
+AAP64: list[str] = [
+    "#060608",
+    "#141013",
+    "#3b1725",
+    "#73172d",
+    "#b4202a",
+    "#df3e23",
+    "#fa6a0a",
+    "#f9a31b",
+    "#ffd541",
+    "#fffc40",
+    "#d6f264",
+    "#9cdb43",
+    "#59c135",
+    "#14a02e",
+    "#1a7a3e",
+    "#24523b",
+    "#122020",
+    "#143464",
+    "#285cc4",
+    "#249fde",
+    "#20d6c7",
+    "#a6fcdb",
+    "#ffffff",
+    "#fef3c0",
+    "#fad6b8",
+    "#f5a097",
+    "#e86a73",
+    "#bc4a9b",
+    "#793a80",
+    "#403353",
+    "#242234",
+    "#221c1a",
+    "#322b28",
+    "#71413b",
+    "#bb7547",
+    "#dba463",
+    "#f4d29c",
+    "#dae0ea",
+    "#b3b9d1",
+    "#8b93af",
+    "#6d758d",
+    "#4a5462",
+    "#333941",
+    "#422433",
+    "#5b3138",
+    "#8e5252",
+    "#ba756a",
+    "#e9b5a3",
+    "#e3e6ff",
+    "#b9bffb",
+    "#849be4",
+    "#588dbe",
+    "#477d85",
+    "#23674e",
+    "#328464",
+    "#5daf8d",
+    "#92dcba",
+    "#cdf7e2",
+    "#e4d2aa",
+    "#c7b08b",
+    "#a08662",
+    "#796755",
+    "#5a4e44",
+    "#423934",
 ]
 
-PALETTES: Dict[str, List[str]] = {
+PALETTES: dict[str, list[str]] = {
     "db16": DB16,
     "db32": DB32,
     "pico8": PICO8,
@@ -96,11 +241,11 @@ PALETTES: Dict[str, List[str]] = {
 }
 
 
-def list_palettes() -> List[str]:
+def list_palettes() -> list[str]:
     return sorted(PALETTES.keys())
 
 
-def get_palette(name: str) -> List[str]:
+def get_palette(name: str) -> list[str]:
     key = name.lower()
     if key not in PALETTES:
         raise ValueError(f"Unknown palette '{name}'. Available: {list_palettes()}")
@@ -112,7 +257,7 @@ def _hex_to_rgb(h: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-def build_palette_image(hex_list: List[str]):
+def build_palette_image(hex_list: list[str]):
     """Build a PIL 'P' mode image usable as `Image.quantize(palette=...)`.
 
     PIL requires a palette image with exactly 256 color slots. Unused slots
@@ -121,7 +266,7 @@ def build_palette_image(hex_list: List[str]):
     """
     from PIL import Image
 
-    flat: List[int] = []
+    flat: list[int] = []
     for h in hex_list:
         flat.extend(_hex_to_rgb(h))
     # Pad unused slots with a duplicate of palette[0] rather than (0,0,0).
@@ -142,7 +287,7 @@ def build_palette_image(hex_list: List[str]):
 # Keyword → palette mapping. Evaluated in order; first hit wins.
 # Rationale: prevents "stone on pico8" failure class where palette lacks
 # the mid-luminance colors needed for the subject.
-_KEYWORD_PALETTE_TABLE: List[Tuple[str, str]] = [
+_KEYWORD_PALETTE_TABLE: list[tuple[str, str]] = [
     (r"\b(metal|steel|armor|stone|grey|gray|silver|iron|dungeon|rock|brick)\b", "db32"),
     (r"\b(tropical|beach|coral|jungle|aquatic|underwater|reef)\b", "aap64"),
     (r"\b(gameboy|monochrome|green\s*only)\b", "gameboy"),
@@ -155,7 +300,7 @@ _KEYWORD_PALETTE_TABLE: List[Tuple[str, str]] = [
 _DEFAULT_PALETTE = "db32"
 
 
-def suggest_palette(prompt: str) -> Tuple[str, str]:
+def suggest_palette(prompt: str) -> tuple[str, str]:
     """Pick a palette based on subject keywords.
 
     Returns (palette_name, matched_keyword_or_default).

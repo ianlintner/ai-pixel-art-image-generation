@@ -28,18 +28,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
-from lib.gemini_client import build_client as build_gemini, generate_with_reference
-from lib.palettes import get_palette, list_palettes, resolve_palette
-from lib.qa_metrics import evaluate_animation, format_report
-from pixelize import pixelize_image
 from export_tiled import (
     AnimationFrame,
     TileEntry,
     Tileset,
     write_tsx,
 )
-
+from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
+from lib.gemini_client import build_client as build_gemini
+from lib.gemini_client import generate_with_reference
+from lib.palettes import get_palette, list_palettes, resolve_palette
+from lib.qa_metrics import evaluate_animation, format_report
+from pixelize import pixelize_image
 
 BASE_FRAME_SUFFIX = (
     " pixel art sprite, side view, character fills the frame edge-to-edge "
@@ -101,32 +101,57 @@ def _frame_prompt(base_prompt: str, action: str, i: int, total: int) -> str:
 
 def parse_args():
     p = argparse.ArgumentParser(description="Generate a pixel-art animation sheet")
-    p.add_argument("--prompt", required=True,
-                   help="Character description (e.g. 'knight walking right')")
+    p.add_argument(
+        "--prompt",
+        required=True,
+        help="Character description (e.g. 'knight walking right')",
+    )
     p.add_argument("--frames", type=int, default=4, help="Number of frames (>=1)")
     p.add_argument("--tile-size", type=int, default=32)
-    p.add_argument("--palette", default="db16",
-                   choices=list_palettes() + ["auto"],
-                   help="Named palette or 'auto' (pick by subject keyword)")
-    p.add_argument("--duration-ms", type=int, default=120,
-                   help="Per-frame duration for Tiled <animation>")
-    p.add_argument("--action", default="walk",
-                   help="Action verb injected into frame prompts (walk/idle/attack/etc.)")
-    p.add_argument("--transparent-bg", action="store_true",
-                   help="Remove background via rembg on each frame")
+    p.add_argument(
+        "--palette",
+        default="db16",
+        choices=list_palettes() + ["auto"],
+        help="Named palette or 'auto' (pick by subject keyword)",
+    )
+    p.add_argument(
+        "--duration-ms",
+        type=int,
+        default=120,
+        help="Per-frame duration for Tiled <animation>",
+    )
+    p.add_argument(
+        "--action",
+        default="walk",
+        help="Action verb injected into frame prompts (walk/idle/attack/etc.)",
+    )
+    p.add_argument(
+        "--transparent-bg",
+        action="store_true",
+        help="Remove background via rembg on each frame",
+    )
     p.add_argument("--name", required=True)
     p.add_argument("--output-dir", required=True)
-    p.add_argument("--source-size", default="1024x1024",
-                   choices=["1024x1024", "1536x1024", "1024x1536"])
+    p.add_argument(
+        "--source-size",
+        default="1024x1024",
+        choices=["1024x1024", "1536x1024", "1024x1536"],
+    )
     p.add_argument("--quality", default="high", choices=["low", "medium", "high"])
     p.add_argument("--deployment", default=None)
     p.add_argument("--api-key", dest="api_key")
     p.add_argument("--endpoint")
     p.add_argument("--api-version", dest="api_version")
-    p.add_argument("--gemini-api-key", dest="gemini_api_key",
-                   help="Gemini API key (overrides GEMINI_API_KEY env)")
-    p.add_argument("--qa", action="store_true",
-                   help="Run QA metrics, write <sheet>.qa.json, non-zero exit on hard-gate fail")
+    p.add_argument(
+        "--gemini-api-key",
+        dest="gemini_api_key",
+        help="Gemini API key (overrides GEMINI_API_KEY env)",
+    )
+    p.add_argument(
+        "--qa",
+        action="store_true",
+        help="Run QA metrics, write <sheet>.qa.json, non-zero exit on hard-gate fail",
+    )
     return p.parse_args()
 
 
@@ -182,6 +207,7 @@ def main():
         # fails bbox_drift / silhouette_iou gates.
         from PIL import Image
         from pixelize import _load_image, _remove_background
+
         cutouts = [_remove_background(_load_image(raw)) for raw in frames_raw]
         union = None
         for c in cutouts:
@@ -196,8 +222,8 @@ def main():
                 union[2] = max(union[2], b[2])
                 union[3] = max(union[3], b[3])
         if union is not None:
-            l, t, r, b = union
-            cw, ch = r - l, b - t
+            left, top, right, bottom = union
+            cw, ch = right - left, bottom - top
             side = max(cw, ch)
             pad = max(1, int(round(side * 0.06)))
             side_padded = side + 2 * pad
@@ -206,7 +232,7 @@ def main():
             aligned = []
             for c in cutouts:
                 canvas = Image.new("RGBA", (side_padded, side_padded), (0, 0, 0, 0))
-                piece = c.crop((l, t, r, b))
+                piece = c.crop((left, top, right, bottom))
                 canvas.paste(piece, (pad + ox_extra, pad + oy_extra), piece)
                 aligned.append(canvas)
             tile_imgs = [
@@ -221,8 +247,13 @@ def main():
             ]
         else:
             tile_imgs = [
-                pixelize_image(raw, target_size=args.tile_size, palette=palette,
-                               transparent_bg=True, fit_subject=False)
+                pixelize_image(
+                    raw,
+                    target_size=args.tile_size,
+                    palette=palette,
+                    transparent_bg=True,
+                    fit_subject=False,
+                )
                 for raw in frames_raw
             ]
     else:
@@ -252,8 +283,7 @@ def main():
     print(f"Sheet saved: {image_path} ({sheet.size[0]}x{sheet.size[1]})")
 
     animation = [
-        AnimationFrame(tile_id=i, duration_ms=args.duration_ms)
-        for i in range(args.frames)
+        AnimationFrame(tile_id=i, duration_ms=args.duration_ms) for i in range(args.frames)
     ]
     entries = [
         TileEntry(
@@ -261,10 +291,7 @@ def main():
             name=f"{args.action}_0",
             animation=animation,
         )
-    ] + [
-        TileEntry(tile_id=i, name=f"{args.action}_{i}")
-        for i in range(1, args.frames)
-    ]
+    ] + [TileEntry(tile_id=i, name=f"{args.action}_{i}") for i in range(1, args.frames)]
 
     tileset = Tileset(
         name=args.name,
@@ -287,6 +314,7 @@ def main():
 
     if args.qa:
         import json
+
         report = evaluate_animation(
             sheet,
             get_palette(palette),

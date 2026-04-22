@@ -23,24 +23,21 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
-from lib.palettes import get_palette, list_palettes, resolve_palette
-from lib.qa_metrics import evaluate_tileset, format_report
-from lib.seamless import crop_center, make_seamless, seam_diff
-from pixelize import pixelize_image
 from export_tiled import (
-    AnimationFrame,
     TileEntry,
     Tileset,
     build_tmj_example,
     write_tmj,
     write_tsx,
 )
-
+from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
+from lib.palettes import get_palette, list_palettes, resolve_palette
+from lib.qa_metrics import evaluate_tileset, format_report
+from lib.seamless import crop_center, make_seamless, seam_diff
+from pixelize import pixelize_image
 
 TILE_PROMPT_SUFFIX = (
     " Part of a large seamless tiling surface, top-down game texture, "
@@ -52,47 +49,66 @@ TILE_PROMPT_SUFFIX = (
 
 def parse_args():
     p = argparse.ArgumentParser(description="Generate a pixel-art tileset")
-    p.add_argument("--prompt", required=True,
-                   help="Comma-separated tile concepts (e.g. 'grass, dirt, stone'). "
-                        "If fewer than --count, prompt is repeated/expanded.")
-    p.add_argument("--tile-size", type=int, default=32,
-                   help="Tile size in pixels (square)")
-    p.add_argument("--count", type=int, default=16,
-                   help="Number of tiles to generate")
-    p.add_argument("--columns", type=int, default=4,
-                   help="Grid columns (rows derived)")
-    p.add_argument("--palette", default="pico8",
-                   choices=list_palettes() + ["auto"],
-                   help="Named palette or 'auto' (pick by subject keyword)")
-    p.add_argument("--transparent-bg", action="store_true",
-                   help="Remove backgrounds via rembg")
-    p.add_argument("--seamless", default="auto",
-                   choices=["none", "crop", "torus", "edge_match", "auto"],
-                   help="Seamless strategy: 'auto' tries crop → torus → edge_match, picks lowest seam_diff")
-    p.add_argument("--name", required=True, help="Tileset name (used for filenames and <tileset name=>)")
+    p.add_argument(
+        "--prompt",
+        required=True,
+        help="Comma-separated tile concepts (e.g. 'grass, dirt, stone'). "
+        "If fewer than --count, prompt is repeated/expanded.",
+    )
+    p.add_argument("--tile-size", type=int, default=32, help="Tile size in pixels (square)")
+    p.add_argument("--count", type=int, default=16, help="Number of tiles to generate")
+    p.add_argument("--columns", type=int, default=4, help="Grid columns (rows derived)")
+    p.add_argument(
+        "--palette",
+        default="pico8",
+        choices=list_palettes() + ["auto"],
+        help="Named palette or 'auto' (pick by subject keyword)",
+    )
+    p.add_argument("--transparent-bg", action="store_true", help="Remove backgrounds via rembg")
+    p.add_argument(
+        "--seamless",
+        default="auto",
+        choices=["none", "crop", "torus", "edge_match", "auto"],
+        help="Seamless strategy: 'auto' tries crop → torus → edge_match, picks lowest seam_diff",
+    )
+    p.add_argument(
+        "--name",
+        required=True,
+        help="Tileset name (used for filenames and <tileset name=>)",
+    )
     p.add_argument("--output-dir", required=True, help="Output directory")
-    p.add_argument("--map-size", type=int, default=10,
-                   help="TMJ example map dimension (square, in tiles)")
-    p.add_argument("--source-size", default="1024x1024",
-                   choices=["1024x1024", "1536x1024", "1024x1536"])
+    p.add_argument(
+        "--map-size",
+        type=int,
+        default=10,
+        help="TMJ example map dimension (square, in tiles)",
+    )
+    p.add_argument(
+        "--source-size",
+        default="1024x1024",
+        choices=["1024x1024", "1536x1024", "1024x1536"],
+    )
     p.add_argument("--quality", default="high", choices=["low", "medium", "high"])
     p.add_argument("--deployment", default=None)
     p.add_argument("--api-key", dest="api_key")
     p.add_argument("--endpoint")
     p.add_argument("--api-version", dest="api_version")
-    p.add_argument("--qa", action="store_true",
-                   help="Run QA metrics, write <sheet>.qa.json, non-zero exit on hard-gate fail")
+    p.add_argument(
+        "--qa",
+        action="store_true",
+        help="Run QA metrics, write <sheet>.qa.json, non-zero exit on hard-gate fail",
+    )
     return p.parse_args()
 
 
-def split_tile_names(prompt: str, count: int) -> List[str]:
+def split_tile_names(prompt: str, count: int) -> list[str]:
     parts = [p.strip() for p in prompt.split(",") if p.strip()]
     if not parts:
         parts = [prompt.strip()]
     if len(parts) >= count:
         return parts[:count]
     # Repeat-expand with an index suffix so names are unique
-    result: List[str] = []
+    result: list[str] = []
     i = 0
     while len(result) < count:
         base = parts[i % len(parts)]
@@ -154,9 +170,13 @@ def main():
                 palette=palette,
                 transparent_bg=args.transparent_bg,
             )
-            seam_metrics.append({"strategy_used": "none",
-                                 "seam_diff_before": seam_diff(tile),
-                                 "seam_diff_after": seam_diff(tile)})
+            seam_metrics.append(
+                {
+                    "strategy_used": "none",
+                    "seam_diff_before": seam_diff(tile),
+                    "seam_diff_after": seam_diff(tile),
+                }
+            )
         else:
             # Pixelize to 3*K x 3*K, crop centre K x K, then (if auto/torus)
             # torus-blend. Centre of a consistent surface tiles cleaner.
@@ -174,9 +194,11 @@ def main():
                 strategy=args.seamless,
             )
             seam_metrics.append(metrics)
-            print(f"    seam_diff: {metrics['seam_diff_before']:.2f} → "
-                  f"{metrics['seam_diff_after']:.2f} "
-                  f"(strategy: {metrics['strategy_used']})")
+            print(
+                f"    seam_diff: {metrics['seam_diff_before']:.2f} → "
+                f"{metrics['seam_diff_after']:.2f} "
+                f"(strategy: {metrics['strategy_used']})"
+            )
         tile_imgs.append(tile)
 
     sheet, rows = pack_sheet(tile_imgs, args.columns, args.tile_size)
@@ -185,10 +207,7 @@ def main():
     sheet.save(image_path)
     print(f"\nSheet saved: {image_path} ({sheet.size[0]}x{sheet.size[1]})")
 
-    entries = [
-        TileEntry(tile_id=i, name=tile_names[i])
-        for i in range(len(tile_names))
-    ]
+    entries = [TileEntry(tile_id=i, name=tile_names[i]) for i in range(len(tile_names))]
 
     tileset = Tileset(
         name=args.name,
@@ -217,6 +236,7 @@ def main():
 
     if args.qa:
         import json
+
         report = evaluate_tileset(
             sheet,
             get_palette(palette),

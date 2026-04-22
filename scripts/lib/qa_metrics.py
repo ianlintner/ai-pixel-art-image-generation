@@ -9,9 +9,6 @@ declared in `GATES` at the bottom of this file and consumed by the CLI.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
-
 # ---------------------------------------------------------------------------
 # Primitives
 # ---------------------------------------------------------------------------
@@ -29,7 +26,7 @@ def _opaque_pixels(img):
                 yield x, y, (r, g, b)
 
 
-def _palette_rgb_set(palette_hex: List[str]) -> set:
+def _palette_rgb_set(palette_hex: list[str]) -> set:
     out = set()
     for h in palette_hex:
         h = h.lstrip("#")
@@ -46,7 +43,7 @@ def _luminance(rgb):
 # ---------------------------------------------------------------------------
 
 
-def palette_fidelity(img, palette_hex: List[str]) -> float:
+def palette_fidelity(img, palette_hex: list[str]) -> float:
     """Fraction of opaque pixels whose RGB is a palette entry. 1.0 is perfect."""
     pal = _palette_rgb_set(palette_hex)
     total = 0
@@ -74,7 +71,7 @@ def alpha_crispness(img) -> float:
     return crisp / total
 
 
-def palette_coverage(img, palette_hex: List[str]) -> float:
+def palette_coverage(img, palette_hex: list[str]) -> float:
     """Unique opaque colours / palette size. Warn if <0.15 or >0.60 for sprites."""
     uniq = set()
     for _, _, rgb in _opaque_pixels(img):
@@ -99,23 +96,19 @@ def tile_seam_diff(tile_img) -> float:
     for y in range(h):
         a = px[0, y]
         b = px[w - 1, y]
-        total += math.sqrt(
-            (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-        )
+        total += math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
         count += 1
     for x in range(w):
         a = px[x, 0]
         b = px[x, h - 1]
-        total += math.sqrt(
-            (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-        )
+        total += math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
         count += 1
     return total / count if count else 0.0
 
 
 def sheet_per_tile_seam_diffs(
     sheet_img, tile_size: int, columns: int, tile_count: int
-) -> List[float]:
+) -> list[float]:
     """Split a tileset sheet into tiles and return seam_diff for each."""
     results = []
     rows = (tile_count + columns - 1) // columns
@@ -136,7 +129,7 @@ def sheet_per_tile_seam_diffs(
 # ---------------------------------------------------------------------------
 
 
-def outline_coverage(img, palette_hex: List[str]) -> float:
+def outline_coverage(img, palette_hex: list[str]) -> float:
     """Fraction of opaque-boundary pixels that are in darkest quartile of palette.
 
     Opaque-boundary pixel = opaque pixel with ≥1 transparent 4-neighbour.
@@ -201,7 +194,7 @@ def baseline_alignment(img, min_contiguous: int = 3) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _alpha_mask(img) -> List[List[bool]]:
+def _alpha_mask(img) -> list[list[bool]]:
     rgba = img.convert("RGBA")
     w, h = rgba.size
     px = rgba.load()
@@ -224,7 +217,7 @@ def silhouette_iou(img_a, img_b) -> float:
     return inter / union if union else 1.0
 
 
-def _alpha_bbox(img) -> Tuple[int, int, int, int]:
+def _alpha_bbox(img) -> tuple[int, int, int, int]:
     """Return (left, top, right, bottom) of opaque region, or None if empty."""
     rgba = img.convert("RGBA")
     w, h = rgba.size
@@ -236,16 +229,20 @@ def _alpha_bbox(img) -> Tuple[int, int, int, int]:
     for y in range(h):
         for x in range(w):
             if px[x, y][3] >= 128:
-                if x < left: left = x
-                if x > right: right = x
-                if y < top: top = y
-                if y > bottom: bottom = y
+                if x < left:
+                    left = x
+                if x > right:
+                    right = x
+                if y < top:
+                    top = y
+                if y > bottom:
+                    bottom = y
     if right < 0:
         return (0, 0, 0, 0)
     return (left, top, right, bottom)
 
 
-def bbox_drift(frame_imgs: List) -> int:
+def bbox_drift(frame_imgs: list) -> int:
     """Max per-axis px drift of bbox across frames (relative to frame 0).
 
     Legacy combined metric. Walk-cycle physics make this noisy because
@@ -265,7 +262,7 @@ def bbox_drift(frame_imgs: List) -> int:
     return worst
 
 
-def bbox_drift_xy(frame_imgs: List) -> Tuple[int, int]:
+def bbox_drift_xy(frame_imgs: list) -> tuple[int, int]:
     """Return (x_drift, y_drift) separately.
 
     x_drift: max absolute diff of left/right bounds vs. frame 0. Expected to
@@ -293,7 +290,7 @@ def bbox_drift_xy(frame_imgs: List) -> Tuple[int, int]:
 
 
 # Gate definitions. 'op' indicates pass direction: 'ge'=>=, 'le'=<=, 'eq'==, 'between' requires [lo,hi].
-GATES: Dict[str, dict] = {
+GATES: dict[str, dict] = {
     "palette_fidelity": {"op": "eq", "value": 1.0, "hard": True},
     "alpha_crispness": {"op": "ge", "value": 0.999, "hard": True},
     "tile_seam_diff_mean": {"op": "le", "value": 12.0, "hard": True},
@@ -310,7 +307,7 @@ GATES: Dict[str, dict] = {
 }
 
 
-def _check_gate(name: str, value) -> Tuple[bool, str]:
+def _check_gate(name: str, value) -> tuple[bool, str]:
     spec = GATES.get(name)
     if not spec:
         return True, "no-gate"
@@ -330,7 +327,7 @@ def _check_gate(name: str, value) -> Tuple[bool, str]:
     return ok, kind
 
 
-def evaluate_sprite(img, palette_hex: List[str]) -> Dict:
+def evaluate_sprite(img, palette_hex: list[str]) -> dict:
     metrics = {
         "palette_fidelity": palette_fidelity(img, palette_hex),
         "alpha_crispness": alpha_crispness(img),
@@ -341,8 +338,9 @@ def evaluate_sprite(img, palette_hex: List[str]) -> Dict:
     return _build_report(metrics)
 
 
-def evaluate_tileset(sheet_img, palette_hex: List[str],
-                     tile_size: int, columns: int, tile_count: int) -> Dict:
+def evaluate_tileset(
+    sheet_img, palette_hex: list[str], tile_size: int, columns: int, tile_count: int
+) -> dict:
     seams = sheet_per_tile_seam_diffs(sheet_img, tile_size, columns, tile_count)
     metrics = {
         "palette_fidelity": palette_fidelity(sheet_img, palette_hex),
@@ -353,14 +351,11 @@ def evaluate_tileset(sheet_img, palette_hex: List[str],
     return _build_report(metrics)
 
 
-def evaluate_animation(sheet_img, palette_hex: List[str],
-                       tile_size: int, frames: int) -> Dict:
+def evaluate_animation(sheet_img, palette_hex: list[str], tile_size: int, frames: int) -> dict:
     frame_imgs = []
     for i in range(frames):
         left = i * tile_size
-        frame_imgs.append(
-            sheet_img.crop((left, 0, left + tile_size, tile_size))
-        )
+        frame_imgs.append(sheet_img.crop((left, 0, left + tile_size, tile_size)))
     # silhouette_iou between contact frames (f0 vs. f2) for walk-style cycles.
     if frames >= 3:
         iou = silhouette_iou(frame_imgs[0], frame_imgs[2])
@@ -377,7 +372,7 @@ def evaluate_animation(sheet_img, palette_hex: List[str],
     return _build_report(metrics)
 
 
-def _build_report(metrics: Dict) -> Dict:
+def _build_report(metrics: dict) -> dict:
     results = {}
     hard_fail = False
     soft_fail = False
@@ -399,7 +394,7 @@ def _build_report(metrics: Dict) -> Dict:
     }
 
 
-def format_report(report: Dict) -> str:
+def format_report(report: dict) -> str:
     """Stdout-friendly ASCII table of report contents."""
     lines = []
     lines.append(f"{'metric':<34} {'value':>10}  {'gate':<5} {'result':<4}")
@@ -417,9 +412,7 @@ def format_report(report: Dict) -> str:
         gate = entry["gate"]
         result = "PASS" if entry["pass"] else ("FAIL" if entry["pass"] is False else "-")
         lines.append(f"{name:<34} {v_str:>10}  {gate:<5} {result:<4}")
-    status = "HARD-FAIL" if report["hard_fail"] else (
-        "SOFT-FAIL" if report["soft_fail"] else "OK"
-    )
+    status = "HARD-FAIL" if report["hard_fail"] else ("SOFT-FAIL" if report["soft_fail"] else "OK")
     lines.append("-" * 60)
     lines.append(f"status: {status}")
     return "\n".join(lines)

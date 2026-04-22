@@ -16,8 +16,6 @@ import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
-
 
 TILED_VERSION = "1.10"
 TILED_EDITOR_VERSION = "1.11.0"
@@ -32,8 +30,8 @@ class AnimationFrame:
 @dataclass
 class TileEntry:
     tile_id: int
-    name: Optional[str] = None
-    animation: List[AnimationFrame] = field(default_factory=list)
+    name: str | None = None
+    animation: list[AnimationFrame] = field(default_factory=list)
 
 
 @dataclass
@@ -45,7 +43,7 @@ class Tileset:
     image_filename: str
     image_width: int
     image_height: int
-    tiles: List[TileEntry] = field(default_factory=list)
+    tiles: list[TileEntry] = field(default_factory=list)
 
     def rows(self) -> int:
         return (self.tile_count + self.columns - 1) // self.columns

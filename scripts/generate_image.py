@@ -19,7 +19,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -28,7 +27,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
 
-
 VALID_SIZES = ["1024x1024", "1536x1024", "1024x1536", "auto"]
 
 
@@ -36,16 +34,27 @@ def parse_args():
     p = argparse.ArgumentParser(description="Generate images via Azure AI Foundry")
     p.add_argument("--prompt", required=True, help="Image generation prompt")
     p.add_argument("--output", default="~/generated_image.png", help="Output file path")
-    p.add_argument("--size", default="1024x1024", choices=VALID_SIZES,
-                   help="Image dimensions")
-    p.add_argument("--quality", default="medium", choices=["low", "medium", "high"],
-                   help="Image quality (low/medium/high)")
+    p.add_argument("--size", default="1024x1024", choices=VALID_SIZES, help="Image dimensions")
+    p.add_argument(
+        "--quality",
+        default="medium",
+        choices=["low", "medium", "high"],
+        help="Image quality (low/medium/high)",
+    )
     p.add_argument("--n", type=int, default=1, help="Number of images (max 1 for gpt-image-1)")
     p.add_argument("--endpoint", help="Azure OpenAI endpoint (overrides AZURE_OPENAI_ENDPOINT)")
     p.add_argument("--api-key", dest="api_key", help="Force API key auth (skips CLI credential)")
-    p.add_argument("--deployment", default=None, help="Deployment name (overrides AZURE_IMAGE_DEPLOYMENT)")
-    p.add_argument("--api-version", dest="api_version", default=None,
-                   help="API version (overrides AZURE_OPENAI_API_VERSION)")
+    p.add_argument(
+        "--deployment",
+        default=None,
+        help="Deployment name (overrides AZURE_IMAGE_DEPLOYMENT)",
+    )
+    p.add_argument(
+        "--api-version",
+        dest="api_version",
+        default=None,
+        help="API version (overrides AZURE_OPENAI_API_VERSION)",
+    )
     return p.parse_args()
 
 

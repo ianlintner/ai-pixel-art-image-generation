@@ -15,15 +15,12 @@ re-measure, return the better of the two.
 
 from __future__ import annotations
 
-from typing import Tuple
-
 
 def seam_diff(img) -> float:
     """Mean L2 RGB distance between wrap-adjacent edge columns/rows.
 
     Returns scalar on 0-255 scale. Lower is better. < 12.0 is the pass gate.
     """
-    from PIL import Image
     import math
 
     rgba = img.convert("RGBA")
@@ -31,9 +28,7 @@ def seam_diff(img) -> float:
     px = rgba.load()
 
     def rgb_diff(a, b):
-        return math.sqrt(
-            (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-        )
+        return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 
     total = 0.0
     count = 0
@@ -67,6 +62,7 @@ def torus_blend(img, palette_name: str, feather: int = 2):
     blend so the output stays palette-valid.
     """
     from PIL import Image
+
     from lib.palettes import build_palette_image, get_palette
 
     rgba = img.convert("RGBA")
@@ -157,6 +153,7 @@ def edge_match_blend(img, palette_name: str, blend_width: int = None):
             original. Defaults to max(2, tile_size // 8).
     """
     from PIL import Image
+
     from lib.palettes import build_palette_image, get_palette
 
     rgba = img.convert("RGBA")
@@ -174,7 +171,7 @@ def edge_match_blend(img, palette_name: str, blend_width: int = None):
     for y in range(h):
         left_rgb = px[0, y]
         right_rgb = px[w - 1, y]
-        avg = tuple((a + b) // 2 for a, b in zip(left_rgb, right_rgb))
+        avg = tuple((a + b) // 2 for a, b in zip(left_rgb, right_rgb, strict=False))
         for k in range(blend_width):
             t = 1.0 - (k / blend_width)  # t=1 at edge, 0 at blend_width
             lx = k
@@ -191,7 +188,7 @@ def edge_match_blend(img, palette_name: str, blend_width: int = None):
     for x in range(w):
         top_rgb = px[x, 0]
         bot_rgb = px[x, h - 1]
-        avg = tuple((a + b) // 2 for a, b in zip(top_rgb, bot_rgb))
+        avg = tuple((a + b) // 2 for a, b in zip(top_rgb, bot_rgb, strict=False))
         for k in range(blend_width):
             t = 1.0 - (k / blend_width)
             ty = k

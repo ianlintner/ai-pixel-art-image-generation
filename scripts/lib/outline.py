@@ -18,9 +18,7 @@ if TYPE_CHECKING:
     from PIL import Image as PILImage  # noqa: F401
 
 
-_NEIGHBOURS = [(-1, -1), (-1, 0), (-1, 1),
-               (0, -1),           (0, 1),
-               (1, -1),  (1, 0),  (1, 1)]
+_NEIGHBOURS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
 
 def _luminance(rgb):
@@ -40,7 +38,7 @@ def add_outline(img, *, mode: str = "palette-darkest"):
     if mode == "none":
         return img
 
-    from PIL import Image, ImageFilter
+    from PIL import ImageFilter
 
     img = img.convert("RGBA")
     w, h = img.size
@@ -69,8 +67,14 @@ def add_outline(img, *, mode: str = "palette-darkest"):
         return img  # nothing opaque, nothing to outline
 
     # Darken the global-darkest slightly for contrast against body.
-    darken = lambda c: max(0, int(c * 0.5))
-    fallback = (darken(global_darkest[0]), darken(global_darkest[1]), darken(global_darkest[2]))
+    def darken(c: int) -> int:
+        return max(0, int(c * 0.5))
+
+    fallback = (
+        darken(global_darkest[0]),
+        darken(global_darkest[1]),
+        darken(global_darkest[2]),
+    )
 
     out = img.copy()
     out_px = out.load()

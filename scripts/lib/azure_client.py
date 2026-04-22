@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
-
 
 COGNITIVE_SCOPE = "https://cognitiveservices.azure.com/.default"
 DEFAULT_API_VERSION = "2025-04-01-preview"
@@ -27,6 +25,7 @@ def _get_token_provider(verbose: bool = True):
     def make_provider(credential):
         def provider():
             return credential.get_token(COGNITIVE_SCOPE).token
+
         return provider
 
     try:
@@ -49,9 +48,9 @@ def _get_token_provider(verbose: bool = True):
 
 
 def build_client(
-    endpoint: Optional[str] = None,
-    api_key: Optional[str] = None,
-    api_version: Optional[str] = None,
+    endpoint: str | None = None,
+    api_key: str | None = None,
+    api_version: str | None = None,
     force_api_key: bool = False,
     verbose: bool = True,
 ):
@@ -59,7 +58,10 @@ def build_client(
     try:
         from openai import AzureOpenAI
     except ImportError:
-        print("ERROR: openai package not installed. Run: pip install openai", file=sys.stderr)
+        print(
+            "ERROR: openai package not installed. Run: pip install openai",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     endpoint = endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")
@@ -100,7 +102,7 @@ def build_client(
     )
 
 
-def resolve_deployment(cli_value: Optional[str] = None) -> str:
+def resolve_deployment(cli_value: str | None = None) -> str:
     return cli_value or os.environ.get("AZURE_IMAGE_DEPLOYMENT", DEFAULT_DEPLOYMENT)
 
 

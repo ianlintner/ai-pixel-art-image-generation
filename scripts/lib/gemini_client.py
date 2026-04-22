@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
-
 
 DEFAULT_MODEL = "gemini-2.5-flash-image"
 
@@ -22,6 +20,7 @@ DEFAULT_MODEL = "gemini-2.5-flash-image"
 def _require_sdk():
     try:
         from google import genai  # type: ignore
+
         return genai
     except ImportError:
         print(
@@ -31,7 +30,7 @@ def _require_sdk():
         sys.exit(1)
 
 
-def build_client(api_key: Optional[str] = None):
+def build_client(api_key: str | None = None):
     genai = _require_sdk()
     api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
@@ -47,7 +46,7 @@ def generate_with_reference(
     client,
     *,
     prompt: str,
-    reference_png_bytes: Optional[bytes] = None,
+    reference_png_bytes: bytes | None = None,
     model: str = DEFAULT_MODEL,
 ) -> bytes:
     """Call Gemini 2.5 Flash Image with an optional reference image.

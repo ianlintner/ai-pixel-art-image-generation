@@ -1,0 +1,47 @@
+[project]
+name = "foundry-image-gen"
+version = "0.1.0"
+description = "Claude Code skill: Azure AI Foundry image generation with Tiled-compatible pixel-art pipelines."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Ian Lintner" }]
+dependencies = [
+    "openai>=1.0",
+    "azure-identity>=1.15",
+    "google-genai>=0.3",
+    "pillow>=10.0",
+    "rembg>=2.0",
+    "onnxruntime>=1.17",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5",
+    "pytest>=8.0",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["assets/", "references/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    # Long lines appear in prompt-string literals — wrapping them hurts readability.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts intentionally mutate sys.path before importing local modules,
+# so E402 (module-level import not at top of file) is expected here.
+"scripts/*.py" = ["E402"]
+"scripts/lib/*.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
