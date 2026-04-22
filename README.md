@@ -2,6 +2,31 @@
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for generating images via **Microsoft Azure AI Foundry**, with an integrated pipeline for producing Tiled-compatible pixel-art sprites, tilesets, and sprite-sheet animations for 2D games.
 
+## Examples
+
+All generated end-to-end from a text prompt by this skill. All previews are nearest-neighbor upscaled so the pixel grid stays visible on GitHub; originals are alongside in [`assets/examples/`](assets/examples/).
+
+### Sprites (128×128, shown at 4× = 512×512)
+
+| Cat wizard (`aap64`) | Knight with sword and shield (`db32`) |
+|:---:|:---:|
+| <img src="assets/examples/sprite_cat_wizard_preview.png" width="320" alt="orange tabby cat wizard sprite"> | <img src="assets/examples/sprite_knight_preview.png" width="320" alt="pixel art knight sprite"> |
+| `--palette aap64 --outline palette-darkest --transparent-bg` | `--palette db32 --outline palette-darkest --transparent-bg` |
+
+### Seamless tileset (4 tiles, 32×32 each, `db32` palette via `--palette auto`)
+
+<img src="assets/examples/tileset_overworld_preview.png" width="320" alt="seamless overworld tileset: grass, dirt, cobblestone, water">
+
+Each tile passes the hard `tile_seam_diff_mean` gate — drop it into Tiled, paint a map, and boundaries disappear. TSX and TMJ export are next to the PNG.
+
+### Walk-cycle animation (4 frames, 64×64 each, `db32`, 150 ms/frame)
+
+| Animated GIF | Source sheet (4 frames, nearest-neighbor upscaled) |
+|:---:|:---:|
+| <img src="assets/examples/animation_knight/knight_walk.gif" width="256" alt="knight walk cycle"> | <img src="assets/examples/animation_knight_sheet_preview.png" width="512" alt="knight walk sheet 4 frames"> |
+
+Frame 0 comes from Azure `gpt-image-1.5`; frames 1–3 come from Gemini 2.5 Flash Image with frame 0 as a reference. The QA report reports `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` (the expected 1 px vertical bob on passing frames).
+
 ## What it does
 
 Two user-facing modes:
