@@ -30,5 +30,8 @@ Thumbs.db
 /dist/
 /tmp/
 
+# MkDocs build output
+/site/
+
 # Optional: ignore locally generated sample PNGs if you commit examples elsewhere
 # *.png

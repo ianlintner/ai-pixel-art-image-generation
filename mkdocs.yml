@@ -1,0 +1,87 @@
+site_name: foundry-image-gen
+site_description: Claude Code skill for Azure AI Foundry image generation with Tiled-compatible pixel-art pipelines.
+site_url: https://ianlintner.github.io/foundry-image-gen/
+repo_url: https://github.com/ianlintner/foundry-image-gen
+repo_name: ianlintner/foundry-image-gen
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    # Dark mode default
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.keys
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Cookbook:
+      - cookbook/index.md
+      - Sprite: cookbook/sprite.md
+      - Tileset: cookbook/tileset.md
+      - Animation: cookbook/animation.md
+      - General image: cookbook/general-image.md
+      - Pixelize existing: cookbook/pixelize.md
+  - Reference:
+      - QA metrics: reference/qa.md
+      - Palettes: reference/palettes.md
+      - Prompt engineering: reference/prompt-engineering.md
+      - Tiled format: reference/tiled-format.md
+  - Install: install.md
