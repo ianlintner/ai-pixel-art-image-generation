@@ -1,5 +1,5 @@
 ---
-name: ai-pixel-art-image-generator
+name: ai-pixel-art-image-generation
 description: This skill should be used when the user wants to generate images via Microsoft Azure AI Foundry OR wants to create pixel-art sprites, tileset sheets, walk-cycle animations, tile maps, or other game graphic assets for 2D games. Triggers on "generate image", "create image", "make picture", "draw", "illustrate", and also on "pixel art sprite", "tileset", "spritesheet", "tiled map", "walk cycle", "generate tiles for my game". Handles Azure auth (CLI → DefaultAzureCredential → API key), Gemini 2.5 Flash Image auth (API key) for frame-consistent animation, pixel-art post-processing (nearest-neighbor + palette quantize + optional rembg), and Tiled-compatible TSX/TMJ export.
 ---
 
@@ -68,7 +68,7 @@ pip install openai azure-identity google-genai pillow rembg onnxruntime
 ### 1. General image generation
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/generate_image.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_image.py \
   --prompt "a cat on mars, photorealistic" \
   --size 1024x1024 --quality medium \
   --output ~/cat.png
@@ -79,7 +79,7 @@ Sizes: `1024x1024`, `1536x1024`, `1024x1536`, `auto`. Qualities: `low`, `medium`
 ### 2. Single pixel-art sprite
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/generate_sprite.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_sprite.py \
   --prompt "orange tabby cat, front view, idle stance" \
   --size 64 --palette db32 --transparent-bg \
   --output ~/cat_64.png
@@ -97,7 +97,7 @@ Output: square RGBA PNG at `--size × --size`, limited to palette colors, hard e
 ### 3. Tileset for Tiled
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/generate_tileset.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_tileset.py \
   --prompt "grass, dirt, stone, water, sand, path, wood plank, stone brick" \
   --tile-size 32 --count 16 --columns 4 --palette pico8 \
   --name overworld --output-dir ~/tilesets/overworld/
@@ -118,7 +118,7 @@ Tileset flags:
 ### 4. Sprite-sheet animation
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/generate_animation.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_animation.py \
   --prompt "knight with blue cape, side view, walking right" \
   --frames 4 --tile-size 32 --palette db16 \
   --duration-ms 120 --action walk \
@@ -137,7 +137,7 @@ Consistency caveat: walk cycles may need rerolls. Rerun for different frames if 
 ### 5. Post-process an existing image
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/pixelize.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/pixelize.py \
   --input raw.png --output sprite.png \
   --size 32 --palette pico8 --transparent-bg
 ```
@@ -197,7 +197,7 @@ When `--qa` is passed to any generator, or via `scripts/qa_report.py <input>`, `
 Hard failures cause non-zero exit. Standalone re-run:
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/qa_report.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/qa_report.py \
   --input ~/tilesets/overworld/overworld.png --kind tileset \
   --palette db32 --tile-size 32 --columns 4
 ```

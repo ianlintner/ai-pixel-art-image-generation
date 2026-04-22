@@ -47,7 +47,7 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 Paste this into a Claude Code session and it will clone the skill, install dependencies, and walk you through credential setup:
 
 !!! tip "Quickstart prompt"
-    Install the `ai-pixel-art-image-generator` skill from https://github.com/ianlintner/ai-pixel-art-image-generator into `~/.claude/skills/ai-pixel-art-image-generator`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+    Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 ### Manual install
 

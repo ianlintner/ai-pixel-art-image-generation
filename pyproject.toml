@@ -1,5 +1,5 @@
 [project]
-name = "ai-pixel-art-image-generator"
+name = "ai-pixel-art-image-generation"
 version = "0.1.0"
 description = "Game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets. Claude Code skill on Azure AI Foundry + Google Gemini with Tiled-compatible output."
 readme = "README.md"

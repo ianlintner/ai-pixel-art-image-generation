@@ -1,8 +1,8 @@
 site_name: AI Pixel Art & Tile Map Generator
 site_description: Game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — Claude Code skill on Azure AI Foundry + Google Gemini with Tiled-compatible output.
-site_url: https://ianlintner.github.io/ai-pixel-art-image-generator/
-repo_url: https://github.com/ianlintner/ai-pixel-art-image-generator
-repo_name: ianlintner/ai-pixel-art-image-generator
+site_url: https://ianlintner.github.io/ai-pixel-art-image-generation/
+repo_url: https://github.com/ianlintner/ai-pixel-art-image-generation
+repo_name: ianlintner/ai-pixel-art-image-generation
 edit_uri: edit/main/docs/
 
 theme:

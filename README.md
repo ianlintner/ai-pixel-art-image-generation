@@ -31,7 +31,7 @@ Frame 0 comes from Azure `gpt-image-1.5`; frames 1–3 come from Gemini 2.5 Flas
 
 Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks you through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
 
-> Install the `ai-pixel-art-image-generator` skill from https://github.com/ianlintner/ai-pixel-art-image-generator into `~/.claude/skills/ai-pixel-art-image-generator`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+> Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 Once the skill is installed, Claude Code auto-discovers it via `SKILL.md` and you can ask things like "generate a 64px pixel-art knight sprite" or "make me a seamless grass-and-stone tileset for my overworld map."
 
@@ -60,7 +60,7 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 If you prefer to install without the Claude Code quickstart prompt:
 
 ```bash
-git clone https://github.com/ianlintner/ai-pixel-art-image-generator.git ~/.claude/skills/ai-pixel-art-image-generator
+git clone https://github.com/ianlintner/ai-pixel-art-image-generation.git ~/.claude/skills/ai-pixel-art-image-generation
 pip install openai azure-identity google-genai pillow rembg onnxruntime
 ```
 
