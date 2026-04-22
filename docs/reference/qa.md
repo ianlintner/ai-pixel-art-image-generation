@@ -2,7 +2,7 @@
 
 Every generator script supports `--qa`. The QA pass computes deterministic Pillow-based metrics and writes a `<output>.qa.json` report next to the artifact. Hard-gate failures exit non-zero; soft-gate failures warn to stderr but still exit `0`.
 
-All metric implementations live in [`scripts/lib/qa_metrics.py`](https://github.com/ianlintner/foundry-image-gen/blob/main/scripts/lib/qa_metrics.py). Thresholds are declared in the `GATES` dict at the bottom of that file.
+All metric implementations live in [`scripts/lib/qa_metrics.py`](https://github.com/ianlintner/ai-pixel-art-image-generator/blob/main/scripts/lib/qa_metrics.py). Thresholds are declared in the `GATES` dict at the bottom of that file.
 
 ## Gate table
 
@@ -47,4 +47,4 @@ python3 scripts/qa_report.py \
   --tile-size 32 --columns 2
 ```
 
-The CI workflow [`ci.yml`](https://github.com/ianlintner/foundry-image-gen/blob/main/.github/workflows/ci.yml) runs this on every bundled example artifact so the committed examples are guaranteed to pass.
+The CI workflow [`ci.yml`](https://github.com/ianlintner/ai-pixel-art-image-generator/blob/main/.github/workflows/ci.yml) runs this on every bundled example artifact so the committed examples are guaranteed to pass.

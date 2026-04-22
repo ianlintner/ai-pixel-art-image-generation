@@ -4,7 +4,7 @@
 
 Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
 
-> Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+> Install the `ai-pixel-art-image-generator` skill from https://github.com/ianlintner/ai-pixel-art-image-generator into `~/.claude/skills/ai-pixel-art-image-generator`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 The manual steps below cover the same ground if you prefer to run them yourself.
 
@@ -39,7 +39,7 @@ No endpoint or subscription IDs are baked into the scripts.
 Clone into your `~/.claude/skills/` directory so Claude Code auto-discovers it via `SKILL.md`:
 
 ```bash
-git clone https://github.com/ianlintner/foundry-image-gen.git ~/.claude/skills/foundry-image-gen
+git clone https://github.com/ianlintner/ai-pixel-art-image-generator.git ~/.claude/skills/ai-pixel-art-image-generator
 ```
 
 ## Verify the install
@@ -47,7 +47,7 @@ git clone https://github.com/ianlintner/foundry-image-gen.git ~/.claude/skills/f
 Generate a small sprite and inspect the QA report:
 
 ```bash
-python3 ~/.claude/skills/foundry-image-gen/scripts/generate_sprite.py \
+python3 ~/.claude/skills/ai-pixel-art-image-generator/scripts/generate_sprite.py \
   --prompt "orange tabby cat, front view, idle" \
   --size 64 --palette auto --transparent-bg --outline palette-darkest --qa \
   --output /tmp/cat.png

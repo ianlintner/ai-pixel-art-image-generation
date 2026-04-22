@@ -1,7 +1,7 @@
 [project]
-name = "foundry-image-gen"
+name = "ai-pixel-art-image-generator"
 version = "0.1.0"
-description = "Claude Code skill: Azure AI Foundry image generation with Tiled-compatible pixel-art pipelines."
+description = "Game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets. Claude Code skill on Azure AI Foundry + Google Gemini with Tiled-compatible output."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

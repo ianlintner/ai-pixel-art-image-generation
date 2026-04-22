@@ -3,9 +3,9 @@ hide:
   - navigation
 ---
 
-# foundry-image-gen
+# AI Pixel Art & Tile Map Generator
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for generating images on **Microsoft Azure AI Foundry**, with a pixel-art pipeline for producing Tiled-compatible sprites, tilesets, and sprite-sheet animations.
+A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **Microsoft Azure AI Foundry** (`gpt-image-1.5`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
 
 <div class="gallery-grid" markdown>
 
@@ -47,7 +47,7 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 Paste this into a Claude Code session and it will clone the skill, install dependencies, and walk you through credential setup:
 
 !!! tip "Quickstart prompt"
-    Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+    Install the `ai-pixel-art-image-generator` skill from https://github.com/ianlintner/ai-pixel-art-image-generator into `~/.claude/skills/ai-pixel-art-image-generator`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 ### Manual install
 

@@ -1,6 +1,6 @@
-# foundry-image-gen
+# AI Pixel Art & Tile Map Generator
 
-A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) for generating images via **Microsoft Azure AI Foundry**, with an integrated pipeline for producing Tiled-compatible pixel-art sprites, tilesets, and sprite-sheet animations for 2D games.
+A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **Microsoft Azure AI Foundry** (`gpt-image-1.5`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
 
 ## Examples
 
@@ -27,6 +27,14 @@ Each tile passes the hard `tile_seam_diff_mean` gate — drop it into Tiled, pai
 
 Frame 0 comes from Azure `gpt-image-1.5`; frames 1–3 come from Gemini 2.5 Flash Image with frame 0 as a reference. The QA report reports `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` (the expected 1 px vertical bob on passing frames).
 
+## Quickstart (Claude Code)
+
+Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks you through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
+
+> Install the `ai-pixel-art-image-generator` skill from https://github.com/ianlintner/ai-pixel-art-image-generator into `~/.claude/skills/ai-pixel-art-image-generator`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+
+Once the skill is installed, Claude Code auto-discovers it via `SKILL.md` and you can ask things like "generate a 64px pixel-art knight sprite" or "make me a seamless grass-and-stone tileset for my overworld map."
+
 ## What it does
 
 Two user-facing modes:
@@ -47,9 +55,12 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 | `scripts/pixelize.py` | Post-process an existing image into pixel art. |
 | `scripts/qa_report.py` | Standalone QA metrics on an existing pixel-art PNG. |
 
-## Install
+## Manual install
+
+If you prefer to install without the Claude Code quickstart prompt:
 
 ```bash
+git clone https://github.com/ianlintner/ai-pixel-art-image-generator.git ~/.claude/skills/ai-pixel-art-image-generator
 pip install openai azure-identity google-genai pillow rembg onnxruntime
 ```
 
@@ -64,7 +75,7 @@ export GEMINI_API_KEY="<your-gemini-api-key>"   # only needed for generate_anima
 
 Azure auth order: Azure CLI (`az login`) → `DefaultAzureCredential` → `AZURE_OPENAI_API_KEY`. No endpoint or subscription IDs are baked into the code.
 
-## Examples
+## CLI examples
 
 Sprite:
 
@@ -94,22 +105,6 @@ python3 scripts/generate_animation.py \
 ```
 
 See `SKILL.md` for the full reference and `references/` for prompt-engineering, Tiled format, and palette details.
-
-## Install as a Claude Code skill
-
-Clone into your `~/.claude/skills/` directory:
-
-```bash
-git clone https://github.com/ianlintner/foundry-image-gen.git ~/.claude/skills/foundry-image-gen
-```
-
-Claude Code auto-discovers the skill via `SKILL.md`.
-
-### Quickstart prompt for Claude Code
-
-Paste this into a fresh Claude Code session and it will install the skill and walk you through credential setup interactively:
-
-> Install the `foundry-image-gen` skill from https://github.com/ianlintner/foundry-image-gen into `~/.claude/skills/foundry-image-gen`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 ## License
 
