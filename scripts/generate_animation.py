@@ -2,7 +2,7 @@
 """Generate a sprite-sheet animation (e.g., 4-frame walk cycle).
 
 Strategy for frame-to-frame consistency:
-  1. Azure gpt-image-1.5 generates "frame 0" (the authoritative base pose).
+  1. gpt-image-2 generates "frame 0" (the authoritative base pose).
   2. Gemini 2.5 Flash Image generates frames 1..N using frame 0 as a
      reference image with prompts like "same character, walking frame 2/4".
   3. Every frame is pixelized with the same palette so colors stay locked.
@@ -34,9 +34,10 @@ from export_tiled import (
     Tileset,
     write_tsx,
 )
-from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
 from lib.gemini_client import build_client as build_gemini
 from lib.gemini_client import generate_with_reference
+from lib.image_client import VALID_PROVIDERS, build_image_generator, generate_image_bytes
+from lib.image_options import DEFAULT_IMAGE_SIZE, POPULAR_IMAGE_SIZES, validate_image_size
 from lib.palettes import get_palette, list_palettes, resolve_palette
 from lib.qa_metrics import evaluate_animation, format_report
 from pixelize import pixelize_image
@@ -134,12 +135,18 @@ def parse_args():
     p.add_argument("--output-dir", required=True)
     p.add_argument(
         "--source-size",
-        default="1024x1024",
-        choices=["1024x1024", "1536x1024", "1024x1536"],
+        default=DEFAULT_IMAGE_SIZE,
+        type=validate_image_size,
+        metavar="WIDTHxHEIGHT",
+        help=f"Source image size before downscale; common values: {', '.join(POPULAR_IMAGE_SIZES)}",
     )
     p.add_argument("--quality", default="high", choices=["low", "medium", "high"])
+    p.add_argument("--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure")
     p.add_argument("--deployment", default=None)
-    p.add_argument("--api-key", dest="api_key")
+    p.add_argument("--model", dest="model", default=None, help=argparse.SUPPRESS)
+    p.add_argument("--api-key", dest="api_key", help="Azure API key auth")
+    p.add_argument("--openai-api-key", dest="openai_api_key", help="OpenAI API key override")
+    p.add_argument("--openai-org", dest="openai_org", help="OpenAI organization override")
     p.add_argument("--endpoint")
     p.add_argument("--api-version", dest="api_version")
     p.add_argument(
@@ -166,19 +173,22 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     palette = resolve_palette(args.palette, args.prompt)
-    deployment = resolve_deployment(args.deployment)
-    azure_client = build_client(
-        endpoint=args.endpoint,
-        api_key=args.api_key,
-        api_version=args.api_version,
-        force_api_key=bool(args.api_key),
+    model = args.model or args.deployment
+    generator = build_image_generator(
+        provider=args.provider,
+        model=model,
+        azure_endpoint=args.endpoint,
+        azure_api_key=args.api_key,
+        azure_api_version=args.api_version,
+        force_azure_api_key=bool(args.api_key),
+        openai_api_key=args.openai_api_key,
+        openai_organization=args.openai_org,
     )
 
-    print(f"[1/{args.frames}] Azure base frame via {deployment}...")
+    print(f"[1/{args.frames}] Base frame via {generator.provider}:{generator.model}...")
     base_prompt = args.prompt.rstrip(".") + "." + BASE_FRAME_SUFFIX
     base_list = generate_image_bytes(
-        azure_client,
-        deployment=deployment,
+        generator,
         prompt=base_prompt,
         size=args.source_size,
         quality=args.quality,

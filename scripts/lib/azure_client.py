@@ -13,7 +13,7 @@ import sys
 
 COGNITIVE_SCOPE = "https://cognitiveservices.azure.com/.default"
 DEFAULT_API_VERSION = "2025-04-01-preview"
-DEFAULT_DEPLOYMENT = "gpt-image-1.5"
+DEFAULT_DEPLOYMENT = "gpt-image-2"
 
 
 def _get_token_provider(verbose: bool = True):

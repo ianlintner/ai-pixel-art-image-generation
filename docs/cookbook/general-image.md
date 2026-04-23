@@ -1,6 +1,6 @@
 # Recipe: general image
 
-Plain text-to-image via Azure Foundry's `gpt-image-1.5`. No pixel-art pipeline, no palette quantize — just a PNG.
+Plain text-to-image via OpenAI/Azure's `gpt-image-2`. No pixel-art pipeline, no palette quantize — just a PNG.
 
 ## Command
 
@@ -15,9 +15,10 @@ python3 scripts/generate_image.py \
 
 | Flag | Meaning |
 |---|---|
-| `--size` | `1024x1024`, `1536x1024`, or `1024x1536`. |
+| `--size` | Common values include `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`, or `auto`. |
 | `--quality` | `low` / `medium` / `high`. Higher quality costs more tokens and takes longer. |
-| `--deployment NAME` | Override the default `gpt-image-1.5` deployment name. |
+| `--provider` | `auto`, `openai`, or `azure`. |
+| `--deployment NAME` | Override the default `gpt-image-2` model/deployment name. |
 | `--output` | Path to write the PNG. Parent directories are created. |
 
 ## When to use this instead of the pixel-art scripts
@@ -28,6 +29,6 @@ python3 scripts/generate_image.py \
 
 ## Tips
 
-- For landscape / portrait aspect ratios, use `1536x1024` or `1024x1536`. The skill does not currently support arbitrary aspect ratios.
+- For custom sizes, use dimensions that are multiples of 16, no more than 3840 px on either edge, within a 3:1 aspect ratio, and between 655,360 and 8,294,400 total pixels.
 - Long prompts benefit from explicit style anchors (e.g. `oil painting`, `photograph`, `anime screencap`). The model follows stylistic keywords more reliably than mood words.
 - Feed the raw output into the [Pixelize existing](pixelize.md) recipe to convert it to pixel art after the fact.

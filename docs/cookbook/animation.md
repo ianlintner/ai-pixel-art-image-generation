@@ -18,7 +18,7 @@ A frame-consistent walk / idle / attack cycle packed into a horizontal sheet, wi
 
 </div>
 
-Frame 0 comes from Azure `gpt-image-1.5`. Frames 1–3 come from Gemini 2.5 Flash Image with **frame 0 as the reference image** (not the previous frame) so drift does not compound. The QA report for this example reads `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` — the expected 1-px vertical bob on passing frames.
+Frame 0 comes from OpenAI/Azure `gpt-image-2`. Frames 1–3 come from Gemini 2.5 Flash Image with **frame 0 as the reference image** (not the previous frame) so drift does not compound. The QA report for this example reads `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` — the expected 1-px vertical bob on passing frames.
 
 ## Command — sprite sheet
 

@@ -1,24 +1,24 @@
 ---
 name: ai-pixel-art-image-generation
-description: This skill should be used when the user wants to generate images via Microsoft Azure AI Foundry OR wants to create pixel-art sprites, tileset sheets, walk-cycle animations, tile maps, or other game graphic assets for 2D games. Triggers on "generate image", "create image", "make picture", "draw", "illustrate", and also on "pixel art sprite", "tileset", "spritesheet", "tiled map", "walk cycle", "generate tiles for my game". Handles Azure auth (CLI → DefaultAzureCredential → API key), Gemini 2.5 Flash Image auth (API key) for frame-consistent animation, pixel-art post-processing (nearest-neighbor + palette quantize + optional rembg), and Tiled-compatible TSX/TMJ export.
+description: This skill should be used when the user wants to generate images via OpenAI or Azure AI Foundry OR wants to create pixel-art sprites, tileset sheets, walk-cycle animations, tile maps, or other game graphic assets for 2D games. Triggers on "generate image", "create image", "make picture", "draw", "illustrate", and also on "pixel art sprite", "tileset", "spritesheet", "tiled map", "walk cycle", "generate tiles for my game". Handles Azure auth (CLI → DefaultAzureCredential → API key), Gemini 2.5 Flash Image auth (API key) for frame-consistent animation, pixel-art post-processing (nearest-neighbor + palette quantize + optional rembg), and Tiled-compatible TSX/TMJ export.
 ---
 
 # AI Pixel Art & Tile Map Generator
 
 ## Overview
 
-Generate images via Azure AI Foundry and, via an integrated pixel-art pipeline, produce Tiled-compatible pixel-art sprites, tileset sheets, and short sprite-sheet animations for 2D games. The skill covers two user paths:
+Generate images via OpenAI/Azure AI Foundry and, via an integrated pixel-art pipeline, produce Tiled-compatible pixel-art sprites, tileset sheets, and short sprite-sheet animations for 2D games. The skill covers two user paths:
 
-1. **General image generation** — text-to-image via `gpt-image-1.5` on Azure Foundry.
-2. **Pixel-art game-asset mode** — Azure generation + nearest-neighbor downscale + palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for Tiled.
+1. **General image generation** — text-to-image via `gpt-image-2` on OpenAI/Azure.
+2. **Pixel-art game-asset mode** — OpenAI/Azure generation + nearest-neighbor downscale + palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for Tiled.
 
-Endpoint is read from the `AZURE_OPENAI_ENDPOINT` environment variable (or the `--endpoint` flag). Example: `https://<your-resource>.cognitiveservices.azure.com/`. The Foundry image deployments must be reachable from that resource in whichever region you provisioned.
+Direct OpenAI uses `OPENAI_API_KEY`. Azure uses `AZURE_OPENAI_ENDPOINT` (or `--endpoint`) plus Azure CLI, `DefaultAzureCredential`, or `AZURE_OPENAI_API_KEY`. Provider selection is `auto`: Azure is used when `AZURE_OPENAI_ENDPOINT` is set, otherwise direct OpenAI is used.
 
 ## When to Use Which Script
 
 | Script                         | Use when user wants...                                     |
 |--------------------------------|------------------------------------------------------------|
-| `scripts/generate_image.py`    | A general-purpose image (any subject, any 1024/1536 size). |
+| `scripts/generate_image.py`    | A general-purpose image (any subject, fixed or flexible `gpt-image-2` size). |
 | `scripts/generate_sprite.py`   | A single pixel-art sprite (16/32/64 px) with a named palette. |
 | `scripts/generate_tileset.py`  | N unique tiles packed into a sheet + TSX + TMJ for Tiled.  |
 | `scripts/generate_animation.py`| 2–8 frame sprite-sheet animation (walk/idle) + TSX with `<animation>`. |
@@ -29,22 +29,26 @@ All scripts are invokable directly via `python3` and print their output paths on
 
 ## Available Image Models
 
-| Model                | SKU              | Use case                           |
+| Model                | Provider         | Use case                           |
 |----------------------|------------------|------------------------------------|
-| `gpt-image-1.5`      | GlobalStandard   | **Default** — high quality         |
-| `gpt-image-1`        | GlobalStandard   | 3 RPM, older generation            |
-| `gpt-image-1-mini`   | GlobalStandard   | Faster/cheaper, 4 RPM              |
-| `sora-2`             | GlobalStandard   | Video (not images)                 |
+| `gpt-image-2`        | OpenAI/Azure     | **Default** — highest quality      |
+| `gpt-image-1`        | OpenAI/Azure     | Older generation compatibility     |
+| `gpt-image-1-mini`   | OpenAI/Azure     | Faster/cheaper drafts              |
+| `sora-2`             | OpenAI/Azure     | Video (not images)                 |
 
 Gemini (separate provider): `gemini-2.5-flash-image` ("Nano Banana") — used for multi-frame animation consistency via reference images.
 
 ## Auth
 
-### Azure (existing — unchanged)
+### OpenAI
 
-1. **Azure CLI** (`az login`) — tried first; best for local/interactive
-2. **DefaultAzureCredential** — managed identity, env service principal, workload identity
-3. **API key** (`AZURE_OPENAI_API_KEY` or `--api-key`) — fallback for CI/headless
+Use `OPENAI_API_KEY` or `--openai-api-key`.
+
+### Azure
+
+1. **Azure CLI** (`az login`) — tried first; best for local/interactive.
+2. **DefaultAzureCredential** — managed identity, env service principal, workload identity.
+3. **API key** (`AZURE_OPENAI_API_KEY` or `--api-key`) — fallback for CI/headless.
 
 Install to enable credential auth: `pip install azure-identity`
 
@@ -58,7 +62,7 @@ API key via `GEMINI_API_KEY` env var (or `--gemini-api-key`). Google has no usab
 pip install openai azure-identity google-genai pillow rembg onnxruntime
 ```
 
-- `openai`, `azure-identity` → Azure auth + image generation.
+- `openai`, `azure-identity` → direct OpenAI, Azure auth, and image generation.
 - `google-genai` → Gemini reference-image generation (required for `generate_animation.py`).
 - `pillow` → post-processing pipeline.
 - `rembg` + `onnxruntime` → optional background removal (needed only when `--transparent-bg` is passed; pulls ~100 MB of ONNX runtime).
@@ -74,7 +78,7 @@ python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_image.py
   --output ~/cat.png
 ```
 
-Sizes: `1024x1024`, `1536x1024`, `1024x1536`, `auto`. Qualities: `low`, `medium`, `high`.
+Common sizes: `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`, `auto`. Custom `gpt-image-2` sizes are accepted when they satisfy the model constraints. Qualities: `low`, `medium`, `high`.
 
 ### 2. Single pixel-art sprite
 
@@ -125,7 +129,7 @@ python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_animatio
   --name knight_walk --output-dir ~/sprites/knight/
 ```
 
-- Frame 0 is generated via Azure (`gpt-image-1.5`).
+- Frame 0 is generated via OpenAI/Azure (`gpt-image-2`).
 - Frames 1..N use Gemini 2.5 Flash Image with frame 0 as a reference image to maintain character consistency.
 - TSX emits an `<animation>` block on tile id 0 that cycles all frames at `--duration-ms`.
 - Frame prompts come from `POSE_LIBRARY` in `generate_animation.py`, keyed by `(action, frame_idx, total)`. Supported actions today: `walk` (4 frames, contact/passing/contact-mirror/passing-mirror), `idle` (2 frames), `attack` (4 frames: wind-up/strike/recoil/recovery). Unknown keys fall back to generic `"frame N of M"` phrasing.
@@ -206,7 +210,7 @@ python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/qa_report.py \
 
 - **Azure 401** — CLI token expired (`az login`) or wrong API key.
 - **Azure 404** — Deployment name mismatch; verify with `az cognitiveservices account deployment list`.
-- **Azure 429** — 3 RPM limit on `gpt-image-1.5`; wait ~20 s and retry.
+- **Azure 429** — deployment rate limit hit; wait and retry, or use a different deployment/SKU.
 - **Azure ContentFilterError** — Rephrase prompt; Azure content policy violation.
 - **Gemini auth error** — `GEMINI_API_KEY` unset; obtain a key from Google AI Studio.
 - **Gemini 429 `RESOURCE_EXHAUSTED` on `gemini-2.5-flash-preview-image`** — the image-generation model has **zero free-tier quota**. Upgrade to a paid Google AI Studio plan to use `generate_animation.py`.

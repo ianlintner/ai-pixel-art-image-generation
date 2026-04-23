@@ -2,10 +2,8 @@
 """Generate a tileset: N unique tiles packed into a grid PNG + TSX + TMJ example.
 
 Strategy:
-  1. Ask Azure to generate N labeled tile concepts on a single contact-sheet
-     image (cheap: one API call). Label text is cropped away during pixelize
-     because we downsample to a small target — but to improve reliability we
-     make separate API calls per tile if --per-tile is set.
+  1. Ask OpenAI/Azure to generate tile concept source images
+     with one generation per tile.
   2. Pixelize each source tile/crop to tile_size with chosen palette.
   3. Pack into columns × rows PNG.
   4. Emit TSX with per-tile <properties name="name"/>.
@@ -33,7 +31,8 @@ from export_tiled import (
     write_tmj,
     write_tsx,
 )
-from lib.azure_client import build_client, generate_image_bytes, resolve_deployment
+from lib.image_client import VALID_PROVIDERS, build_image_generator, generate_image_bytes
+from lib.image_options import DEFAULT_IMAGE_SIZE, POPULAR_IMAGE_SIZES, validate_image_size
 from lib.palettes import get_palette, list_palettes, resolve_palette
 from lib.qa_metrics import evaluate_tileset, format_report
 from lib.seamless import crop_center, make_seamless, seam_diff
@@ -85,12 +84,18 @@ def parse_args():
     )
     p.add_argument(
         "--source-size",
-        default="1024x1024",
-        choices=["1024x1024", "1536x1024", "1024x1536"],
+        default=DEFAULT_IMAGE_SIZE,
+        type=validate_image_size,
+        metavar="WIDTHxHEIGHT",
+        help=f"Source image size before downscale; common values: {', '.join(POPULAR_IMAGE_SIZES)}",
     )
     p.add_argument("--quality", default="high", choices=["low", "medium", "high"])
+    p.add_argument("--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure")
     p.add_argument("--deployment", default=None)
-    p.add_argument("--api-key", dest="api_key")
+    p.add_argument("--model", dest="model", default=None, help=argparse.SUPPRESS)
+    p.add_argument("--api-key", dest="api_key", help="Azure API key auth")
+    p.add_argument("--openai-api-key", dest="openai_api_key", help="OpenAI API key override")
+    p.add_argument("--openai-org", dest="openai_org", help="OpenAI organization override")
     p.add_argument("--endpoint")
     p.add_argument("--api-version", dest="api_version")
     p.add_argument(
@@ -139,12 +144,16 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     palette = resolve_palette(args.palette, args.prompt)
-    deployment = resolve_deployment(args.deployment)
-    client = build_client(
-        endpoint=args.endpoint,
-        api_key=args.api_key,
-        api_version=args.api_version,
-        force_api_key=bool(args.api_key),
+    model = args.model or args.deployment
+    generator = build_image_generator(
+        provider=args.provider,
+        model=model,
+        azure_endpoint=args.endpoint,
+        azure_api_key=args.api_key,
+        azure_api_version=args.api_version,
+        force_azure_api_key=bool(args.api_key),
+        openai_api_key=args.openai_api_key,
+        openai_organization=args.openai_org,
     )
 
     tile_names = split_tile_names(args.prompt, args.count)
@@ -156,8 +165,7 @@ def main():
         per_prompt = f"A seamless '{name}' surface texture. {TILE_PROMPT_SUFFIX}"
         print(f"  [{i + 1}/{len(tile_names)}] {name} ...")
         raw_list = generate_image_bytes(
-            client,
-            deployment=deployment,
+            generator,
             prompt=per_prompt,
             size=args.source_size,
             quality=args.quality,

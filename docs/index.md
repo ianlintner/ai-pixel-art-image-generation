@@ -5,7 +5,7 @@ hide:
 
 # AI Pixel Art & Tile Map Generator
 
-A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **Microsoft Azure AI Foundry** (`gpt-image-1.5`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
+A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **OpenAI or Azure AI Foundry** (`gpt-image-2`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
 
 <div class="gallery-grid" markdown>
 
@@ -35,8 +35,8 @@ A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet ani
 
 Two modes:
 
-1. **General image generation** — text-to-image via `gpt-image-1.5` on Azure Foundry.
-2. **Pixel-art game-asset mode** — Azure generation → nearest-neighbor downscale → named-palette quantize → (for animations) Gemini 2.5 Flash Image reference-based frame consistency → TSX/TMJ export for [Tiled](https://www.mapeditor.org/).
+1. **General image generation** — text-to-image via `gpt-image-2` on OpenAI/Azure.
+2. **Pixel-art game-asset mode** — OpenAI/Azure generation → nearest-neighbor downscale → named-palette quantize → (for animations) Gemini 2.5 Flash Image reference-based frame consistency → TSX/TMJ export for [Tiled](https://www.mapeditor.org/).
 
 The skill ships deterministic QA metrics for every pipeline, with hard gates on palette fidelity, alpha crispness, tile seam continuity, and walk-cycle alignment.
 
@@ -47,12 +47,15 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 Paste this into a Claude Code session and it will clone the skill, install dependencies, and walk you through credential setup:
 
 !!! tip "Quickstart prompt"
-    Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+    Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask whether I want direct OpenAI or Azure AI Foundry for `gpt-image-2`, and ask for the Gemini API key if I want animations. Don't assume — check which auth path I'm using (`OPENAI_API_KEY`, `az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 ### Manual install
 
 ```bash
 pip install openai azure-identity google-genai pillow rembg onnxruntime
+# Direct OpenAI:
+export OPENAI_API_KEY="<your-openai-api-key>"
+# Or Azure AI Foundry:
 export AZURE_OPENAI_ENDPOINT="https://<your-foundry-resource>.cognitiveservices.azure.com/"
 export GEMINI_API_KEY="<your-gemini-api-key>"  # only needed for animations
 ```
@@ -68,7 +71,7 @@ Each recipe shows the example output first, then the command that produced it.
 | [Sprite](cookbook/sprite.md) | Single pixel-art character with outline and named palette. |
 | [Tileset](cookbook/tileset.md) | N unique seamless tiles packed into a sheet + Tiled TSX + TMJ. |
 | [Animation](cookbook/animation.md) | 2–8 frame sprite-sheet animation + Tiled `<animation>` block + GIF. |
-| [General image](cookbook/general-image.md) | Any subject, any 1024 / 1536 size. |
+| [General image](cookbook/general-image.md) | Any subject, fixed or flexible `gpt-image-2` size. |
 | [Pixelize existing](cookbook/pixelize.md) | Post-process an existing PNG into pixel art. |
 
 ## Reference

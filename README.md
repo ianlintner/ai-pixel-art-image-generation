@@ -1,6 +1,6 @@
 # AI Pixel Art & Tile Map Generator
 
-A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **Microsoft Azure AI Foundry** (`gpt-image-1.5`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
+A game developer toolkit for AI-generated pixel art, tile maps, sprite-sheet animations, and other game graphic assets — packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) on top of **OpenAI or Azure AI Foundry** (`gpt-image-2`) and **Google Gemini 2.5 Flash Image**. Outputs are Tiled-compatible (TSX/TMJ) so sprites and tilesets drop straight into your map editor.
 
 ## Examples
 
@@ -25,13 +25,13 @@ Each tile passes the hard `tile_seam_diff_mean` gate — drop it into Tiled, pai
 |:---:|:---:|
 | <img src="assets/examples/animation_knight/knight_walk.gif" width="256" alt="knight walk cycle"> | <img src="assets/examples/animation_knight_sheet_preview.png" width="512" alt="knight walk sheet 4 frames"> |
 
-Frame 0 comes from Azure `gpt-image-1.5`; frames 1–3 come from Gemini 2.5 Flash Image with frame 0 as a reference. The QA report reports `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` (the expected 1 px vertical bob on passing frames).
+Frame 0 comes from OpenAI/Azure `gpt-image-2`; frames 1–3 come from Gemini 2.5 Flash Image with frame 0 as a reference. The QA report reports `silhouette_iou_f0_f2 = 0.99`, `bbox_drift_x = 0`, `bbox_drift_y = 1` (the expected 1 px vertical bob on passing frames).
 
 ## Quickstart (Claude Code)
 
-Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks you through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
+Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks you through credential setup interactively.
 
-> Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+> Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask whether I want direct OpenAI or Azure AI Foundry for `gpt-image-2`, and ask for the Gemini API key if I want animations. Don't assume — check which auth path I'm using (`OPENAI_API_KEY`, `az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 Once the skill is installed, Claude Code auto-discovers it via `SKILL.md` and you can ask things like "generate a 64px pixel-art knight sprite" or "make me a seamless grass-and-stone tileset for my overworld map."
 
@@ -39,8 +39,8 @@ Once the skill is installed, Claude Code auto-discovers it via `SKILL.md` and yo
 
 Two user-facing modes:
 
-1. **General image generation** — text-to-image via `gpt-image-1.5` on Azure Foundry.
-2. **Pixel-art game-asset mode** — Azure generation + nearest-neighbor downscale + named-palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for [Tiled](https://www.mapeditor.org/).
+1. **General image generation** — text-to-image via `gpt-image-2` on OpenAI/Azure.
+2. **Pixel-art game-asset mode** — OpenAI/Azure generation + nearest-neighbor downscale + named-palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for [Tiled](https://www.mapeditor.org/).
 
 The skill ships deterministic QA metrics for every pipeline, with hard gates on palette fidelity, alpha crispness, tile seam continuity, and walk-cycle alignment.
 
@@ -48,7 +48,7 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 
 | Script | Purpose |
 |---|---|
-| `scripts/generate_image.py` | General-purpose image (any subject, any 1024/1536 size). |
+| `scripts/generate_image.py` | General-purpose image (any subject, fixed or flexible `gpt-image-2` size). |
 | `scripts/generate_sprite.py` | Single pixel-art sprite with outline and named palette. |
 | `scripts/generate_tileset.py` | N unique seamless tiles packed into a sheet + TSX + TMJ. |
 | `scripts/generate_animation.py` | 2–8 frame sprite-sheet animation + TSX `<animation>` block. |
@@ -66,14 +66,25 @@ pip install openai azure-identity google-genai pillow rembg onnxruntime
 
 ## Configure
 
-Set these before running:
+For direct OpenAI, set:
+
+```bash
+export OPENAI_API_KEY="<your-openai-api-key>"
+```
+
+For Azure AI Foundry, set:
 
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://<your-foundry-resource>.cognitiveservices.azure.com/"
-export GEMINI_API_KEY="<your-gemini-api-key>"   # only needed for generate_animation.py
 ```
 
-Azure auth order: Azure CLI (`az login`) → `DefaultAzureCredential` → `AZURE_OPENAI_API_KEY`. No endpoint or subscription IDs are baked into the code.
+For animations, also set:
+
+```bash
+export GEMINI_API_KEY="<your-gemini-api-key>"
+```
+
+Provider selection is `auto`: Azure is used when `AZURE_OPENAI_ENDPOINT` is set, otherwise direct OpenAI is used. Override with `--provider openai` or `--provider azure`. Azure auth order: Azure CLI (`az login`) → `DefaultAzureCredential` → `AZURE_OPENAI_API_KEY`.
 
 ## CLI examples
 

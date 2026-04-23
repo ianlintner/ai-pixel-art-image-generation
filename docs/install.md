@@ -2,9 +2,9 @@
 
 ## Quickstart: let Claude Code do it
 
-Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks through credential setup interactively — Claude Code will ask where your Azure Foundry endpoint lives and which auth path you're using before writing anything.
+Paste this prompt into a fresh Claude Code session. It clones the skill, installs the Python dependencies, and walks through credential setup interactively.
 
-> Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask me where my Azure Foundry endpoint and Gemini API key should go. Don't assume — check which auth path I'm using (`az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
+> Install the `ai-pixel-art-image-generation` skill from https://github.com/ianlintner/ai-pixel-art-image-generation into `~/.claude/skills/ai-pixel-art-image-generation`, install its Python dependencies, then ask whether I want direct OpenAI or Azure AI Foundry for `gpt-image-2`, and ask for the Gemini API key if I want animations. Don't assume — check which auth path I'm using (`OPENAI_API_KEY`, `az login`, `DefaultAzureCredential`, or a static `AZURE_OPENAI_API_KEY`), tell me which shell rc file to export the env vars in, and verify the install by generating a small sprite with `--qa`.
 
 The manual steps below cover the same ground if you prefer to run them yourself.
 
@@ -19,10 +19,15 @@ pip install openai azure-identity google-genai pillow rembg onnxruntime
 ## Environment variables
 
 ```bash
+# Direct OpenAI:
+export OPENAI_API_KEY="<your-openai-api-key>"
+# Or Azure AI Foundry:
 export AZURE_OPENAI_ENDPOINT="https://<your-foundry-resource>.cognitiveservices.azure.com/"
 # Only needed for generate_animation.py (frames 2..N use Gemini).
 export GEMINI_API_KEY="<your-gemini-api-key>"
 ```
+
+Provider selection is `auto`: Azure is used when `AZURE_OPENAI_ENDPOINT` is set, otherwise direct OpenAI is used. Override with `--provider openai` or `--provider azure`.
 
 ## Azure authentication
 
