@@ -55,7 +55,7 @@ jobs:
           python -c "import pixelize"
           python -c "import qa_report"
           python -c "import export_tiled"
-          python -c "from lib import azure_client, gemini_client, palettes, qa_metrics, outline, seamless"
+          python -c "from lib import azure_client, gemini_client, image_client, image_options, openai_client, palettes, qa_metrics, outline, seamless"
 
   qa-gates:
     name: QA gates on bundled example assets

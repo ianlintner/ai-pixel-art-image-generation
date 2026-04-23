@@ -50,7 +50,9 @@ def parse_args():
         help="Image quality (low/medium/high)",
     )
     p.add_argument("--n", type=int, default=1, help="Number of images (max 1 for gpt-image-1)")
-    p.add_argument("--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure")
+    p.add_argument(
+        "--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure"
+    )
     p.add_argument("--endpoint", help="Azure OpenAI endpoint (overrides AZURE_OPENAI_ENDPOINT)")
     p.add_argument("--api-key", dest="api_key", help="Azure API key auth (skips CLI credential)")
     p.add_argument("--openai-api-key", dest="openai_api_key", help="OpenAI API key override")

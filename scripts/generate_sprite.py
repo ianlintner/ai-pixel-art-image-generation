@@ -65,7 +65,9 @@ def parse_args():
         help=f"Source image size before downscale; common values: {', '.join(POPULAR_IMAGE_SIZES)}",
     )
     p.add_argument("--quality", default="high", choices=["low", "medium", "high"])
-    p.add_argument("--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure")
+    p.add_argument(
+        "--provider", default=None, choices=VALID_PROVIDERS, help="auto, openai, or azure"
+    )
     p.add_argument("--deployment", default=None, help="Image model/deployment override")
     p.add_argument("--model", dest="model", default=None, help=argparse.SUPPRESS)
     p.add_argument("--api-key", dest="api_key", help="Azure API key auth")
