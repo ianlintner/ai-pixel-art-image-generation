@@ -1,28 +1,37 @@
 #!/usr/bin/env python3
-"""Generate a sprite-sheet animation (e.g., 4-frame walk cycle).
+"""Generate pixel-art animation sheet(s) with style variation.
 
-Strategy for frame-to-frame consistency:
+Strategy for frame-to-frame consistency (unchanged):
   1. gpt-image-2 generates "frame 0" (the authoritative base pose).
   2. Gemini 2.5 Flash Image generates frames 1..N using frame 0 as a
-     reference image with prompts like "same character, walking frame 2/4".
-  3. Every frame is pixelized with the same palette so colors stay locked.
-  4. Frames are packed horizontally (columns = N, rows = 1). TSX emits an
-     <animation> block on tile id 0 so Tiled's animation preview plays.
+     reference image with explicit pose descriptors.
+  3. Every frame is pixelized with the same palette so colours stay locked.
+  4. Frames are packed horizontally; TSX emits an <animation> block on tile 0.
 
-Caveat: diffusion models drift. Walk cycles may need rerolls. Rerun with
-  --frame-seed-offset N to re-roll specific frames.
+Variation (Tier 1 + 2):
+  - Style (rendering/lighting/mood/detail) is sampled ONCE per animation set
+    and applied to the BASE-FRAME suffix only. Gemini then propagates the
+    stylistic look to subsequent frames via the reference image. Per-frame
+    style randomization would break silhouette/palette consistency, which is
+    load-bearing for walk cycles.
+  - --variants N generates N complete animation sets (each a full cycle) in
+    per-set subdirectories.
+  - --style preset, --palette auto seeded pick, --outline-mode, and
+    --palette-jitter all work analogously to generate_sprite.py.
 
 Example:
-    python3 generate_animation.py \
-        --prompt "knight walking right" \
-        --frames 4 --tile-size 32 --palette db16 \
-        --duration-ms 120 --action walk \
-        --name knight_walk --output-dir ~/sprites/knight/
+    python3 generate_animation.py \\
+        --prompt "knight walking right" \\
+        --frames 4 --tile-size 32 --palette auto \\
+        --duration-ms 120 --action walk \\
+        --name knight_walk --output-dir ~/sprites/knight/ \\
+        --variants 3 --style modern-indie
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -38,24 +47,20 @@ from lib.gemini_client import build_client as build_gemini
 from lib.gemini_client import generate_with_reference
 from lib.image_client import VALID_PROVIDERS, build_image_generator, generate_image_bytes
 from lib.image_options import DEFAULT_IMAGE_SIZE, POPULAR_IMAGE_SIZES, validate_image_size
-from lib.palettes import get_palette, list_palettes, resolve_palette
+from lib.palettes import get_palette, jitter_palette, list_palettes, resolve_palette
+from lib.prompt_style import (
+    STYLE_PRESETS,
+    compose_suffix,
+    list_style_presets,
+    resolve_style,
+    rewrite_prompt,
+)
 from lib.qa_metrics import evaluate_animation, format_report
 from pixelize import pixelize_image
 
-BASE_FRAME_SUFFIX = (
-    " pixel art sprite, side view, character fills the frame edge-to-edge "
-    "with minimal empty space around silhouette, plain flat solid-color "
-    "background, hard edges, limited palette, centered, no text, no watermark, "
-    "no ground shadow, contact pose with right leg forward and left leg back, "
-    "frame 1 of animation."
-)
-
-
 # Explicit pose descriptors keyed by (action, frame_idx, total_frames).
-# Rationale: Gemini treats the reference image as a strong attractor. Using
-# "frame N of M" yields near-duplicates. Explicit pose words break the
-# attractor along the target axis (walk-cycle theory: contact/passing/
-# contact/passing with 1-2px vertical bob on passing frames).
+# These control per-frame silhouette and are NOT varied by style — they are
+# the walk-cycle physics and must stay exact for IoU/bbox_drift gates.
 POSE_LIBRARY: dict = {
     ("walk", 0, 4): (
         "contact pose: right leg forward extended, left leg back extended, "
@@ -86,12 +91,14 @@ def _pose_descriptor(action: str, i: int, total: int) -> str:
     key = (action, i, total)
     if key in POSE_LIBRARY:
         return POSE_LIBRARY[key]
-    # Fallback: generic frame-of-total phrasing.
     return f"{action} pose, frame {i + 1} of {total}, mid-motion"
 
 
-def _frame_prompt(base_prompt: str, action: str, i: int, total: int) -> str:
+def _frame_prompt(action: str, i: int, total: int) -> str:
     pose = _pose_descriptor(action, i, total)
+    # Intentionally does NOT inject style axes — the reference image from
+    # frame 0 is what locks the style for frames 1..N. Style variation must
+    # happen in the BASE frame only.
     return (
         f"Same character as the reference image. {pose}. "
         "Exact same silhouette width, same palette, same character facing same direction. "
@@ -101,7 +108,9 @@ def _frame_prompt(base_prompt: str, action: str, i: int, total: int) -> str:
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Generate a pixel-art animation sheet")
+    p = argparse.ArgumentParser(
+        description="Generate pixel-art animation sheet(s) with style variation"
+    )
     p.add_argument(
         "--prompt",
         required=True,
@@ -111,9 +120,9 @@ def parse_args():
     p.add_argument("--tile-size", type=int, default=32)
     p.add_argument(
         "--palette",
-        default="db16",
+        default="auto",
         choices=list_palettes() + ["auto"],
-        help="Named palette or 'auto' (pick by subject keyword)",
+        help="Named palette or 'auto' (seeded pick from compatible candidates)",
     )
     p.add_argument(
         "--duration-ms",
@@ -133,6 +142,39 @@ def parse_args():
     )
     p.add_argument("--name", required=True)
     p.add_argument("--output-dir", required=True)
+
+    # -- Variation knobs --
+    p.add_argument(
+        "--variants",
+        "--n",
+        dest="variants",
+        type=int,
+        default=1,
+        help="Number of complete animation sets (each in its own subdir)",
+    )
+    p.add_argument(
+        "--style",
+        default=None,
+        choices=list_style_presets(),
+        help="Style preset biasing axis pools (applied to base frame only)",
+    )
+    p.add_argument(
+        "--style-seed",
+        default=None,
+        help="Override RNG seed for style sampling (default: name + variant index)",
+    )
+    p.add_argument(
+        "--rewrite-prompts",
+        action="store_true",
+        help="Rephrase the character subject per variant via gpt-4.1-mini",
+    )
+    p.add_argument(
+        "--palette-jitter",
+        type=float,
+        default=0.0,
+        help="Per-variant palette hue/lightness jitter strength 0..1",
+    )
+
     p.add_argument(
         "--source-size",
         default=DEFAULT_IMAGE_SIZE,
@@ -159,36 +201,70 @@ def parse_args():
     p.add_argument(
         "--qa",
         action="store_true",
-        help="Run QA metrics, write <sheet>.qa.json, non-zero exit on hard-gate fail",
+        help="Run QA metrics per set, non-zero exit on hard-gate fail",
     )
     return p.parse_args()
 
 
-def main():
-    args = parse_args()
+def _variant_dir(base: Path, name: str, idx: int, total: int) -> Path:
+    if total <= 1:
+        return base
+    width = max(2, len(str(total)))
+    return base / f"{name}_{idx:0{width}d}"
 
-    if args.frames < 1:
-        print("ERROR: --frames must be >= 1", file=sys.stderr)
-        sys.exit(1)
 
-    out_dir = Path(args.output_dir).expanduser().resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
+def _build_animation(
+    args,
+    generator,
+    variant_idx: int,
+    total_variants: int,
+    text_client,
+) -> bool:
+    """Generate ONE complete animation set. Returns True if QA hard-failed."""
+    seed_str = args.style_seed or f"{args.name}|{args.prompt}|{variant_idx}"
 
-    palette = resolve_palette(args.palette, args.prompt)
-    model = args.model or args.deployment
-    generator = build_image_generator(
-        provider=args.provider,
-        model=model,
-        azure_endpoint=args.endpoint,
-        azure_api_key=args.api_key,
-        azure_api_version=args.api_version,
-        force_azure_api_key=bool(args.api_key),
-        openai_api_key=args.openai_api_key,
-        openai_organization=args.openai_org,
+    palette_arg = args.palette
+    if palette_arg == "auto" and args.style and args.style in STYLE_PRESETS:
+        hint = STYLE_PRESETS[args.style].get("palette_hint")
+        if hint:
+            palette_arg = hint
+    palette_name = resolve_palette(palette_arg, args.prompt, seed_str=seed_str)
+    palette_hex = get_palette(palette_name)
+    if args.palette_jitter and args.palette_jitter > 0:
+        palette_hex = jitter_palette(palette_hex, seed_str=seed_str, strength=args.palette_jitter)
+
+    # Style sampled ONCE for the whole set. Suffix applied to base frame only.
+    style = resolve_style(args.style, seed_str, kind="animation")
+    base_suffix = compose_suffix(style, kind="animation")
+    # For walk cycles, always assert the contact-pose-frame-1 framing (was
+    # baked into the old BASE_FRAME_SUFFIX). Inject after the core suffix so
+    # the action pose stays explicit.
+    base_suffix += " Contact pose with right leg forward and left leg back, frame 1 of animation."
+
+    # Optional character-level prompt rewrite.
+    subject_prompt = args.prompt
+    if text_client is not None:
+        subject_prompt = rewrite_prompt(text_client, args.prompt, variant_idx)
+
+    base_out = Path(args.output_dir).expanduser().resolve()
+    variant_out = _variant_dir(base_out, args.name, variant_idx + 1, total_variants)
+    variant_out.mkdir(parents=True, exist_ok=True)
+
+    print(
+        f"\n[animation variant {variant_idx + 1}/{total_variants}] "
+        f"palette={palette_name}{' (jittered)' if args.palette_jitter else ''} "
+        f"preset={args.style or 'none'} → {variant_out}"
     )
+    print(
+        "  style: "
+        + ", ".join(
+            f"{k}={style[k]}" for k in ("mood", "rendering", "lighting", "detail") if k in style
+        )
+    )
+    print(f"  subject: {subject_prompt[:80]}{'...' if len(subject_prompt) > 80 else ''}")
 
-    print(f"[1/{args.frames}] Base frame via {generator.provider}:{generator.model}...")
-    base_prompt = args.prompt.rstrip(".") + "." + BASE_FRAME_SUFFIX
+    base_prompt = subject_prompt.rstrip(".") + "." + base_suffix
+    print(f"  [1/{args.frames}] base frame via {generator.provider}:{generator.model}...")
     base_list = generate_image_bytes(
         generator,
         prompt=base_prompt,
@@ -199,11 +275,11 @@ def main():
     frames_raw: list[bytes] = [base_list[0]]
 
     if args.frames > 1:
-        print(f"  Initializing Gemini client for frames 2..{args.frames}")
+        print(f"  initializing Gemini for frames 2..{args.frames}")
         gemini = build_gemini(api_key=args.gemini_api_key)
         for i in range(1, args.frames):
-            print(f"[{i + 1}/{args.frames}] Gemini reference-frame generation...")
-            prompt = _frame_prompt(args.prompt, args.action, i, args.frames)
+            print(f"  [{i + 1}/{args.frames}] Gemini reference-frame ...")
+            prompt = _frame_prompt(args.action, i, args.frames)
             frame_bytes = generate_with_reference(
                 gemini,
                 prompt=prompt,
@@ -211,12 +287,8 @@ def main():
             )
             frames_raw.append(frame_bytes)
 
-    print(f"Pixelizing {len(frames_raw)} frames to {args.tile_size}px palette={palette}...")
+    print(f"  pixelizing {len(frames_raw)} frames @ {args.tile_size}px palette={palette_name}...")
     if args.transparent_bg:
-        # Shared-bbox crop so all frames align to the same silhouette coords.
-        # Per-frame tight-crop would drift the character's position frame to
-        # frame (each bbox is independent), which breaks walk-cycle feel and
-        # fails bbox_drift / silhouette_iou gates.
         from PIL import Image
         from pixelize import _load_image, _remove_background
 
@@ -251,7 +323,7 @@ def main():
                 pixelize_image(
                     c,
                     target_size=args.tile_size,
-                    palette=palette,
+                    palette=palette_hex,
                     transparent_bg=False,
                     fit_subject=False,
                 )
@@ -262,7 +334,7 @@ def main():
                 pixelize_image(
                     raw,
                     target_size=args.tile_size,
-                    palette=palette,
+                    palette=palette_hex,
                     transparent_bg=True,
                     fit_subject=False,
                 )
@@ -273,7 +345,7 @@ def main():
             pixelize_image(
                 raw,
                 target_size=args.tile_size,
-                palette=palette,
+                palette=palette_hex,
                 transparent_bg=args.transparent_bg,
             )
             for raw in frames_raw
@@ -290,9 +362,9 @@ def main():
         sheet.paste(tile, (idx * args.tile_size, 0))
 
     image_filename = f"{args.name}.png"
-    image_path = out_dir / image_filename
+    image_path = variant_out / image_filename
     sheet.save(image_path)
-    print(f"Sheet saved: {image_path} ({sheet.size[0]}x{sheet.size[1]})")
+    print(f"  sheet saved: {image_path} ({sheet.size[0]}x{sheet.size[1]})")
 
     animation = [
         AnimationFrame(tile_id=i, duration_ms=args.duration_ms) for i in range(args.frames)
@@ -316,33 +388,108 @@ def main():
         tiles=entries,
     )
 
-    tsx_path = out_dir / f"{args.name}.tsx"
+    tsx_path = variant_out / f"{args.name}.tsx"
     write_tsx(tileset, tsx_path)
-    print(f"TSX saved: {tsx_path}")
+    print(f"  TSX saved: {tsx_path}")
     print(
-        f"Animation: tile 0 cycles {args.frames} frames @ {args.duration_ms} ms "
+        f"  animation: tile 0 cycles {args.frames} frames @ {args.duration_ms} ms "
         f"(loop duration {args.frames * args.duration_ms} ms)"
     )
 
-    if args.qa:
-        import json
+    sidecar_data = {
+        "kind": "animation",
+        "sheet": str(image_path),
+        "tsx": str(tsx_path),
+        "user_prompt": args.prompt,
+        "variant_prompt": subject_prompt,
+        "base_frame_prompt": base_prompt,
+        "variant_idx": variant_idx,
+        "total_variants": total_variants,
+        "style_preset": args.style,
+        "style_axes": {k: v for k, v in style.items() if not k.startswith("_")},
+        "style_extra_clauses": style.get("_extra_clauses") or [],
+        "style_seed": seed_str,
+        "palette_name": palette_name,
+        "palette_jitter": args.palette_jitter,
+        "palette_hex": palette_hex,
+        "action": args.action,
+        "frames": args.frames,
+        "tile_size": args.tile_size,
+        "duration_ms": args.duration_ms,
+        "source_size": args.source_size,
+        "quality": args.quality,
+        "provider": generator.provider,
+        "model": generator.model,
+        "rewrite_prompts": args.rewrite_prompts,
+    }
+    sidecar_path = image_path.with_suffix(image_path.suffix + ".gen.json")
+    sidecar_path.write_text(json.dumps(sidecar_data, indent=2, default=str))
 
+    hard_fail = False
+    if args.qa:
         report = evaluate_animation(
             sheet,
-            get_palette(palette),
+            palette_hex,
             tile_size=args.tile_size,
             frames=args.frames,
         )
         report["input"] = str(image_path)
         report["kind"] = "animation"
-        report["palette"] = palette
+        report["palette"] = palette_name
+        report["palette_hex"] = palette_hex
         qa_path = image_path.with_suffix(image_path.suffix + ".qa.json")
         qa_path.write_text(json.dumps(report, indent=2, default=str))
         print()
         print(format_report(report))
-        print(f"\nJSON: {qa_path}")
-        if report["hard_fail"]:
-            sys.exit(1)
+        print(f"  qa JSON: {qa_path}")
+        hard_fail = report["hard_fail"]
+    return hard_fail
+
+
+def main():
+    args = parse_args()
+
+    if args.frames < 1:
+        print("ERROR: --frames must be >= 1", file=sys.stderr)
+        sys.exit(1)
+    if args.variants < 1:
+        print("ERROR: --variants must be >= 1", file=sys.stderr)
+        sys.exit(2)
+
+    model = args.model or args.deployment
+    generator = build_image_generator(
+        provider=args.provider,
+        model=model,
+        azure_endpoint=args.endpoint,
+        azure_api_key=args.api_key,
+        azure_api_version=args.api_version,
+        force_azure_api_key=bool(args.api_key),
+        openai_api_key=args.openai_api_key,
+        openai_organization=args.openai_org,
+    )
+
+    text_client = None
+    if args.rewrite_prompts:
+        try:
+            from lib.openai_client import build_client as _build_openai
+
+            text_client = _build_openai(
+                api_key=args.openai_api_key,
+                organization=args.openai_org,
+            )
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"[prompt-rewrite] unavailable, continuing without rewrites: {e}",
+                file=sys.stderr,
+            )
+
+    any_hard_fail = False
+    for v in range(args.variants):
+        if _build_animation(args, generator, v, args.variants, text_client):
+            any_hard_fail = True
+
+    if any_hard_fail:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

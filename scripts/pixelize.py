@@ -92,9 +92,21 @@ def _tight_crop_square(img, pad_frac: float = 0.06):
     return canvas
 
 
-def _quantize_rgba(img, palette_name: str):
-    """Quantize an RGBA image to the palette, preserving alpha."""
-    palette_img = build_palette_image(get_palette(palette_name))
+def _resolve_palette_hex(palette) -> list[str]:
+    """Accept a palette name (str) or an already-resolved hex list."""
+    if isinstance(palette, str):
+        return get_palette(palette)
+    return list(palette)
+
+
+def _quantize_rgba(img, palette):
+    """Quantize an RGBA image to the palette, preserving alpha.
+
+    `palette` may be a name (str, e.g. 'db32') or a list of '#rrggbb' hex strings
+    (e.g. a jittered palette). The hex-list path enables per-variant palette
+    jitter without having to register a new named palette.
+    """
+    palette_img = build_palette_image(_resolve_palette_hex(palette))
 
     rgb = img.convert("RGB")
     # Convert to P using the supplied palette. Requires P-mode palette source.
@@ -114,17 +126,23 @@ def pixelize_image(
     src,
     *,
     target_size: int | tuple[int, int],
-    palette: str,
+    palette,
     transparent_bg: bool = False,
     outline: str = "none",
+    outline_seed: str | None = None,
     fit_subject: bool = True,
     subject_pad_frac: float = 0.06,
 ) -> Image.Image:
     """Run the full pixelize pipeline and return a PIL Image.
 
     Args:
-        outline: 'none' or 'palette-darkest'. Applied after NN downscale,
-            before palette quantize so outline colours snap to palette.
+        palette: palette name (str, e.g. 'db32') OR an already-resolved hex
+            list (e.g. a jittered palette from palettes.jitter_palette).
+        outline: one of 'none', 'palette-darkest', 'tone-shift', 'random'.
+            Applied after NN downscale, before palette quantize so outline
+            colours snap to palette.
+        outline_seed: optional seed for `outline='random'`; makes the pick
+            reproducible given the same string.
         fit_subject: when transparent_bg is True, tight-crop the subject to
             its alpha bbox and pad to a square so it fills the output frame.
             Ignored when transparent_bg is False (tileset textures should
@@ -154,7 +172,7 @@ def pixelize_image(
     if outline != "none":
         from lib.outline import add_outline
 
-        img = add_outline(img, mode=outline)
+        img = add_outline(img, mode=outline, seed_str=outline_seed)
 
     return _quantize_rgba(img, palette)
 
@@ -183,8 +201,10 @@ def parse_args():
     p.add_argument(
         "--outline",
         default="none",
-        choices=["none", "palette-darkest"],
-        help="Optional 1-px dark outline ring (sprites only)",
+        choices=["none", "palette-darkest", "tone-shift", "random"],
+        help="Optional 1-px dark outline ring (sprites only). "
+        "'palette-darkest' is the punchy default; 'tone-shift' is a softer "
+        "SNES-selout look; 'random' picks per-call.",
     )
     return p.parse_args()
 

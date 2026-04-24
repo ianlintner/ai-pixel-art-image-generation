@@ -49,9 +49,9 @@ The skill ships deterministic QA metrics for every pipeline, with hard gates on 
 | Script | Purpose |
 |---|---|
 | `scripts/generate_image.py` | General-purpose image (any subject, fixed or flexible `gpt-image-2` size). |
-| `scripts/generate_sprite.py` | Single pixel-art sprite with outline and named palette. |
-| `scripts/generate_tileset.py` | N unique seamless tiles packed into a sheet + TSX + TMJ. |
-| `scripts/generate_animation.py` | 2–8 frame sprite-sheet animation + TSX `<animation>` block. |
+| `scripts/generate_sprite.py` | Single pixel-art sprite with outline, named palette, and `--variants`/`--style` variation. |
+| `scripts/generate_tileset.py` | N unique seamless tiles packed into a sheet + TSX + TMJ. `--variants` generates multiple coherent tilesets. |
+| `scripts/generate_animation.py` | 2–8 frame sprite-sheet animation + TSX `<animation>` block. `--variants` generates multiple full walk cycles. |
 | `scripts/pixelize.py` | Post-process an existing image into pixel art. |
 | `scripts/qa_report.py` | Standalone QA metrics on an existing pixel-art PNG. |
 
@@ -114,6 +114,62 @@ python3 scripts/generate_animation.py \
   --palette db16 --action walk --transparent-bg \
   --name knight_walk --output-dir out/knight/ --qa
 ```
+
+## Variation controls (fighting samey outputs)
+
+`gpt-image-2` does not expose a `temperature` or `seed` parameter, so identical
+prompts converge on near-identical outputs. To keep a body of generated assets
+from looking same-y, all three generators accept variation flags that rotate
+**stylistic** clauses in the prompt suffix while keeping load-bearing
+constraints (`pixel art`, `limited palette`, `no text`, `no borders`) intact.
+
+| Flag | What it does |
+|---|---|
+| `--variants N` (alias `--n N`) | Generate N outputs. Sprites: `out_01.png…out_NN.png`. Tilesets/animations: N complete sets in numbered subdirs. |
+| `--style <preset>` | One of `chibi`, `hi-bit-snes`, `gb-4color`, `mega-drive`, `modern-indie`, `nes`. Biases axis pools, palette hint, outline default. |
+| `--style-seed <str>` | Override RNG seed for style sampling. Default: `prompt + variant index`. Same seed → same style. |
+| `--rewrite-prompts` | Per-variant, call `gpt-4.1-mini` to rephrase the subject (mood / pose / silhouette emphasis only). Closest analog to image-model "temperature". Falls back silently if the text model is unavailable. |
+| `--outline-mode {palette-darkest,tone-shift,none,random}` | `tone-shift` is the softer SNES "selout" look; `random` varies between `palette-darkest` and `tone-shift` per variant. |
+| `--palette-jitter 0..1` | Per-variant hue/lightness shift on the chosen palette. `0.05` is gentle; `0.15` is bold. Anchor black/white are preserved. |
+| `--palette auto` | Now picks a seeded palette from the compatible-candidate list per variant. Same seed → same palette; different variants → different palettes. |
+
+Every generated file now writes a `.gen.json` sidecar next to the output with
+the exact final prompt, palette, style axes, preset, provider/model, and
+variant seed — reproducibility even though the image API has no seed.
+
+Examples:
+
+```bash
+# 4 sprite variants of the same cat, different moods / lighting / angles
+python3 scripts/generate_sprite.py \
+  --prompt "orange tabby cat, front view, idle" \
+  --size 64 --palette auto --transparent-bg \
+  --variants 4 --palette-jitter 0.05 --outline-mode random \
+  --output out/cats/cat.png
+
+# 3 complete SNES-styled overworld tilesets
+python3 scripts/generate_tileset.py \
+  --prompt "grass, dirt, stone, water" \
+  --tile-size 32 --count 4 --columns 2 --palette auto \
+  --variants 3 --style hi-bit-snes \
+  --name overworld --output-dir out/overworld/
+
+# 3 knight walk cycles with rewritten subject prompts
+python3 scripts/generate_animation.py \
+  --prompt "knight walking right" --frames 4 --tile-size 32 \
+  --palette auto --action walk --transparent-bg \
+  --variants 3 --style modern-indie --rewrite-prompts \
+  --name knight_walk --output-dir out/knight/
+```
+
+Design notes:
+- **Tilesets** sample style **once per set** (not per tile) so every tile in a
+  given set is stylistically coherent.
+- **Animations** sample style **once per set** and apply it to the *base frame
+  only*. Gemini then locks the look across frames via the reference image;
+  per-frame style randomization would break silhouette/palette consistency.
+- `--rewrite-prompts` always uses the original prompt verbatim for variant 0,
+  so at least one output matches your exact wording.
 
 See `SKILL.md` for the full reference and `references/` for prompt-engineering, Tiled format, and palette details.
 

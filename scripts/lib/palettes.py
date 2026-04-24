@@ -15,6 +15,8 @@ Sources:
 
 from __future__ import annotations
 
+import hashlib
+import random
 import re
 
 DB16: list[str] = [
@@ -284,44 +286,144 @@ def build_palette_image(hex_list: list[str]):
     return palette_img
 
 
-# Keyword → palette mapping. Evaluated in order; first hit wins.
-# Rationale: prevents "stone on pico8" failure class where palette lacks
-# the mid-luminance colors needed for the subject.
-_KEYWORD_PALETTE_TABLE: list[tuple[str, str]] = [
-    (r"\b(metal|steel|armor|stone|grey|gray|silver|iron|dungeon|rock|brick)\b", "db32"),
-    (r"\b(tropical|beach|coral|jungle|aquatic|underwater|reef)\b", "aap64"),
-    (r"\b(gameboy|monochrome|green\s*only)\b", "gameboy"),
-    (r"\b(arcade|nes|8-bit|8bit)\b", "nes"),
-    (r"\b(knight|fantasy|rpg|character|hero|warrior|wizard|mage)\b", "db16"),
-    (r"\b(terrain|tile|overworld|map|landscape|biome)\b", "db32"),
-    (r"\b(detailed|portrait|high-?detail|hi-?detail)\b", "aap64"),
+# Keyword → candidate palettes. Evaluated in order; first hit wins. Each
+# entry lists palettes that are *compatible* with the subject so `auto` can
+# randomly pick one per variant (seeded) for variety without breaking the
+# "palette has mid-luminance grays for stone" kind of invariants.
+# First palette in each list is the historical default and is preserved for
+# back-compatibility when the RNG is not seeded.
+_KEYWORD_PALETTE_TABLE: list[tuple[str, list[str]]] = [
+    (r"\b(metal|steel|armor|stone|grey|gray|silver|iron|dungeon|rock|brick)\b", ["db32", "aap64"]),
+    (r"\b(tropical|beach|coral|jungle|aquatic|underwater|reef)\b", ["aap64", "db32"]),
+    (r"\b(gameboy|monochrome|green\s*only)\b", ["gameboy"]),
+    (r"\b(arcade|nes|8-bit|8bit)\b", ["nes", "pico8"]),
+    (r"\b(knight|fantasy|rpg|character|hero|warrior|wizard|mage)\b", ["db16", "db32", "aap64"]),
+    (r"\b(terrain|tile|overworld|map|landscape|biome)\b", ["db32", "aap64"]),
+    (r"\b(detailed|portrait|high-?detail|hi-?detail)\b", ["aap64", "db32"]),
 ]
 
-_DEFAULT_PALETTE = "db32"
+_DEFAULT_PALETTE_CANDIDATES = ["db32", "aap64"]
+_DEFAULT_PALETTE = _DEFAULT_PALETTE_CANDIDATES[0]
+
+
+def resolve_palette_candidates(prompt: str) -> tuple[list[str], str]:
+    """Return (list_of_compatible_palettes, matched_keyword_or_default)."""
+    lowered = prompt.lower()
+    for pattern, palettes in _KEYWORD_PALETTE_TABLE:
+        m = re.search(pattern, lowered)
+        if m:
+            return list(palettes), m.group(0)
+    return list(_DEFAULT_PALETTE_CANDIDATES), "default"
 
 
 def suggest_palette(prompt: str) -> tuple[str, str]:
-    """Pick a palette based on subject keywords.
+    """Pick the default palette for a subject. (First candidate in table.)
 
     Returns (palette_name, matched_keyword_or_default).
     """
-    lowered = prompt.lower()
-    for pattern, palette in _KEYWORD_PALETTE_TABLE:
-        m = re.search(pattern, lowered)
-        if m:
-            return palette, m.group(0)
-    return _DEFAULT_PALETTE, "default"
+    candidates, reason = resolve_palette_candidates(prompt)
+    return candidates[0], reason
 
 
-def resolve_palette(palette_arg: str, prompt: str) -> str:
-    """Resolve user --palette arg, handling 'auto' via suggest_palette.
+def _seeded_rng_for_palette(seed_str: str) -> random.Random:
+    h = hashlib.blake2b(seed_str.encode("utf-8"), digest_size=8).digest()
+    return random.Random(int.from_bytes(h, "big"))
 
-    Returns concrete palette name; logs choice to stderr when auto.
+
+def resolve_palette(
+    palette_arg: str,
+    prompt: str,
+    *,
+    seed_str: str | None = None,
+) -> str:
+    """Resolve user --palette arg, handling 'auto' via keyword candidates.
+
+    When `palette_arg == 'auto'`:
+      - If `seed_str` is None: returns the historical default (first candidate),
+        preserving pre-variation behavior.
+      - If `seed_str` is given: seeded RNG picks one candidate uniformly, so
+        re-running with the same seed_str yields the same palette but different
+        seed_str values produce different palettes.
+
+    Explicit palette names (db16, pico8, etc.) are returned unchanged.
     """
     import sys as _sys
 
     if palette_arg.lower() == "auto":
-        chosen, reason = suggest_palette(prompt)
-        print(f"[palette] auto → '{chosen}' (matched: {reason})", file=_sys.stderr)
+        candidates, reason = resolve_palette_candidates(prompt)
+        if seed_str is None or len(candidates) == 1:
+            chosen = candidates[0]
+            print(
+                f"[palette] auto → '{chosen}' (matched: {reason})",
+                file=_sys.stderr,
+            )
+            return chosen
+        rng = _seeded_rng_for_palette(seed_str)
+        chosen = rng.choice(candidates)
+        print(
+            f"[palette] auto → '{chosen}' (matched: {reason}, seeded pick from {candidates})",
+            file=_sys.stderr,
+        )
         return chosen
     return palette_arg
+
+
+# ---------------------------------------------------------------------------
+# Palette jitter (Tier 2G): tiny controlled perturbation of hue/lightness so
+# two variants of the same sprite don't feel color-identical. Stays within
+# sane gamut and avoids touching pure black/white which act as anchor colors.
+# ---------------------------------------------------------------------------
+
+
+def _rgb_to_hls(r: int, g: int, b: int) -> tuple[float, float, float]:
+    import colorsys
+
+    return colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+
+
+def _hls_to_rgb(h: float, lt: float, s: float) -> tuple[int, int, int]:
+    import colorsys
+
+    r, g, b = colorsys.hls_to_rgb(h, lt, s)
+    return (
+        max(0, min(255, int(round(r * 255)))),
+        max(0, min(255, int(round(g * 255)))),
+        max(0, min(255, int(round(b * 255)))),
+    )
+
+
+def jitter_palette(palette_hex: list[str], seed_str: str, strength: float = 0.05) -> list[str]:
+    """Return a lightly-perturbed copy of `palette_hex`.
+
+    Shifts hue within ±strength (wraps) and lightness within ±strength*0.5.
+    Skips entries that are near-black or near-white to preserve anchor tones.
+    Deterministic given `seed_str`.
+
+    Args:
+        palette_hex: List of "#rrggbb" entries.
+        seed_str: RNG seed string.
+        strength: 0..1. 0.05 is gentle (keeps identity), 0.15 is bold.
+    """
+    strength = max(0.0, min(1.0, float(strength)))
+    if strength == 0.0:
+        return list(palette_hex)
+
+    rng = _seeded_rng_for_palette(seed_str + "|jitter")
+    out: list[str] = []
+    for entry in palette_hex:
+        r, g, b = _hex_to_rgb(entry)
+        # Anchor colors: preserve exactly.
+        if max(r, g, b) >= 245 and min(r, g, b) >= 230:
+            out.append(entry)
+            continue
+        if max(r, g, b) <= 16:
+            out.append(entry)
+            continue
+        h, lt, s = _rgb_to_hls(r, g, b)
+        h = (h + rng.uniform(-strength, strength)) % 1.0
+        lt = max(0.0, min(1.0, lt + rng.uniform(-strength * 0.5, strength * 0.5)))
+        # Keep saturation roughly intact; nudge slightly to break ties.
+        s = max(0.0, min(1.0, s + rng.uniform(-strength * 0.25, strength * 0.25)))
+        nr, ng, nb = _hls_to_rgb(h, lt, s)
+        out.append(f"#{nr:02x}{ng:02x}{nb:02x}")
+    return out
