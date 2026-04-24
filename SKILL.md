@@ -52,6 +52,41 @@ Use `OPENAI_API_KEY` or `--openai-api-key`.
 
 Install to enable credential auth: `pip install azure-identity`
 
+**Endpoint gotcha.** Azure AI Foundry resources expose two URLs. Use the **Azure OpenAI legacy endpoint** for `gpt-image-*`, not the AI Services endpoint:
+
+- ✅ `https://<resource>.openai.azure.com/` — works with `scripts/lib/azure_client.py`.
+- ❌ `https://<resource>.services.ai.azure.com/` — Foundry-native API, not compatible with this skill.
+
+Discover it with:
+```bash
+az cognitiveservices account show --name <resource> --resource-group <rg> \
+  --query 'properties.endpoints' -o json
+```
+
+**Provider auto-select.** Provider resolves to `azure` when `AZURE_OPENAI_ENDPOINT` is set in the environment. Some shells/tools (e.g. agent runners) don't source `~/.zshrc`; if `--provider auto` falls back to OpenAI unexpectedly, either prefix the call (`AZURE_OPENAI_ENDPOINT=... python scripts/…`) or pass `--provider azure --endpoint https://…` explicitly.
+
+### Deploying a model on Azure
+
+Before first use you need a deployment of the image model on your resource. The `az cognitiveservices account deployment create` extension has a bug where it pins an unsupported `api-version`. Use `az rest` directly:
+
+```bash
+SUB=$(az account show --query id -o tsv)
+RG=$(az cognitiveservices account list \
+       --query "[?name=='<resource>'].resourceGroup" -o tsv)
+
+az rest --method put \
+  --url "https://management.azure.com/subscriptions/${SUB}/resourceGroups/${RG}/providers/Microsoft.CognitiveServices/accounts/<resource>/deployments/gpt-image-2?api-version=2024-10-01" \
+  --body '{"sku":{"name":"GlobalStandard","capacity":1},"properties":{"model":{"format":"OpenAI","name":"gpt-image-2","version":"2026-04-21"}}}'
+```
+
+Check what's deployable in your region first:
+```bash
+az cognitiveservices model list --location <region> \
+  --query "[?kind=='OpenAI' && starts_with(model.name,'gpt-image')].{name:model.name,version:model.version}" -o table
+```
+
+**Regional availability (as of 2026-04).** `gpt-image-2` (version `2026-04-21`) is only published in `eastus2`. `gpt-image-1`, `gpt-image-1-mini`, and `gpt-image-1.5` are more broadly available. If your resource lives elsewhere, either deploy `gpt-image-1.5` (newest broadly-available) or create a second resource in `eastus2`.
+
 ### Gemini (only for `generate_animation.py`)
 
 API key via `GEMINI_API_KEY` env var (or `--gemini-api-key`). Google has no usable Entra equivalent for this endpoint.
@@ -209,15 +244,81 @@ python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/qa_report.py \
 ## Troubleshooting
 
 - **Azure 401** — CLI token expired (`az login`) or wrong API key.
-- **Azure 404** — Deployment name mismatch; verify with `az cognitiveservices account deployment list`.
-- **Azure 429** — deployment rate limit hit; wait and retry, or use a different deployment/SKU.
+- **Azure 404 `DeploymentNotFound`** — Deployment name mismatch; verify with `az cognitiveservices account deployment list -n <resource> -g <rg>`. If the model *exists* in the region but isn't deployed yet, create the deployment (see "Deploying a model on Azure" above).
+- **Azure 404 from AI Services endpoint** — you're pointing at `https://<resource>.services.ai.azure.com/` instead of `https://<resource>.openai.azure.com/`. The skill's client needs the legacy OpenAI endpoint.
+- **Azure 429** — deployment rate limit hit; default rate on fresh GlobalStandard image deployments is ~1 req/60s at capacity 1. Bump capacity via the same `az rest` deploy command (PATCH with higher `sku.capacity`) or wait between generations.
+- **Azure `api-version` error on `deployment create`** — the CLI extension pins `2025-09-01` which Azure rejects and ignores `--api-version`. Use the `az rest` workaround in "Deploying a model on Azure".
 - **Azure ContentFilterError** — Rephrase prompt; Azure content policy violation.
+- **`ERROR: OpenAI provider requires OPENAI_API_KEY` when you expected Azure** — `AZURE_OPENAI_ENDPOINT` isn't in the process env (shell didn't source `~/.zshrc`, or the runner strips it). Prefix inline: `AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/ python scripts/…` or pass `--provider azure --endpoint …`.
 - **Gemini auth error** — `GEMINI_API_KEY` unset; obtain a key from Google AI Studio.
 - **Gemini 429 `RESOURCE_EXHAUSTED` on `gemini-2.5-flash-preview-image`** — the image-generation model has **zero free-tier quota**. Upgrade to a paid Google AI Studio plan to use `generate_animation.py`.
 - **`rembg` missing** — `pip install rembg onnxruntime`; first run downloads the u2net model (~100 MB).
 - **Tileset renders as magenta in Tiled** — image path wrong; ensure PNG and TSX sit side-by-side.
 - **Walk cycle frame breaks** — reroll by rerunning with a slightly different action verb ("walking left foot forward").
 - **Mushy output** — richer palette, larger `--size`, tighter prompt. See `references/pixel_art_prompting.md`.
+- **QA `outline_coverage` soft-fail at 32px low quality** — expected. The model doesn't reliably draw 1-px outlines at small sizes. Either raise `--quality medium`, increase `--size 64`, or rely on `--outline palette-darkest` post-process (default) which adds the ring deterministically.
+- **QA `palette_coverage` soft-fail < 0.15** — prompt/style is producing a near-monochrome sprite. Loosen prompt colour constraints or switch to a smaller palette (e.g. `gameboy`/`pico8`).
+
+## Recommendations
+
+Lessons from real runs — read before kicking off a batch.
+
+### Model selection
+
+- **Default to `gpt-image-2`** when deployed in your region (currently `eastus2`-only on Azure). Best silhouette fidelity and palette discipline.
+- **`gpt-image-1.5`** is the best broadly-available fallback. Near-parity quality, wider region coverage.
+- **`gpt-image-1-mini`** for iteration/drafts: ~3× faster, good enough to validate prompt/style/layout before committing. Weaker at 1-px outlines and small-detail fidelity.
+- **Never ask `sora-2` for images** — it's a video model and will fail or waste quota.
+
+### Quality vs size
+
+| Goal                    | Recommended combo                                         |
+|-------------------------|-----------------------------------------------------------|
+| Final 32×32 sprite      | `--size 32 --quality medium`, rely on `--outline palette-darkest` |
+| Final 64×64 sprite      | `--size 64 --quality medium` or `high`                    |
+| Tileset (32-px tiles)   | `--tile-size 32 --quality medium` + `--seamless auto`     |
+| Walk cycle              | `--tile-size 32 --quality medium` — frame 0 dictates everything; invest quality there |
+| Iteration / A-B prompts | `--size 32 --quality low --deployment gpt-image-1-mini`   |
+
+`--quality low` at 32 px is fine for shape testing but will soft-fail outline/coverage QA. Don't chase hard gates at `low`.
+
+### Palette strategy
+
+- When in doubt, use `--palette auto` and trust the keyword table.
+- `db32` is the default safe choice: covers earth/foliage/water/metal.
+- `pico8` over-saturates dungeons, armour, and stone — its auto-pick rules already steer those to `db32`, don't override.
+- For animation consistency, **pass the same palette to all frames**. Gemini frame-to-frame drift is absorbed by the palette quantize step.
+
+### Animation-specific
+
+- Frame 0 is generated by `gpt-image-2` / Azure. Frames 1..N are Gemini with frame 0 as reference. Spend your prompt-engineering budget on frame 0.
+- `walk` with 4 frames is the sweet spot. 2 frames looks janky; 8 frames rarely improves perceived motion and 4× the Gemini cost.
+- `--transparent-bg` uses a *shared* bbox across all frames — do not post-process frames individually or they will jitter.
+- Expect to reroll ~1-in-4 animations. Budget for it.
+
+### Cost / rate
+
+- Fresh Azure image deployments default to **capacity 1 ≈ 1 req/60s**. For batch generation (e.g. 16-tile tileset), either bump capacity (PATCH `sku.capacity`) or run sequentially with retry.
+- OpenAI direct has no per-deployment cap but is priced per-image; `low` quality is roughly 1/4 the cost of `high`.
+- `rembg` (on `--transparent-bg`) is local CPU — free but slow (~2-4 s/image on first call, cached after).
+
+### QA-driven iteration loop
+
+1. First pass: `--quality low`, no `--qa` — just eyeball shape and pose.
+2. Second pass: `--quality medium --qa`. Read `.qa.json`. If all hard gates pass, ship.
+3. On soft fails:
+   - `outline_coverage` → already handled by `--outline palette-darkest` default; only worry if you set `--outline none`.
+   - `palette_coverage` low → richer prompt or smaller palette.
+   - `palette_coverage` high → subject is too busy for the palette; scale down palette or simplify prompt.
+4. On hard fails, don't tune — regenerate with a different seed/prompt. Hard-fail metrics (palette fidelity, alpha crispness, silhouette IoU) are binary problems, not degrees.
+
+### Path / install
+
+Scripts in this doc are shown under `~/.claude/skills/ai-pixel-art-image-generation/` but the skill is agent-agnostic. Substitute your install root:
+
+- Claude Code: `~/.claude/skills/ai-pixel-art-image-generation/`
+- OpenCode: `~/.config/opencode/skill/ai-pixel-art-image-generation/`
+- Cloned repo / dev: run from the repo root with `python scripts/…`
 
 ## Scope
 
