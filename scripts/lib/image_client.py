@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from lib import azure_client, openai_client
+from lib import azure_client, fal_client, openai_client
 
-VALID_PROVIDERS = ["auto", "openai", "azure"]
+VALID_PROVIDERS = ["auto", "openai", "azure", "fal"]
 
 
 @dataclass(frozen=True)
@@ -36,6 +36,7 @@ def build_image_generator(
     force_azure_api_key: bool = False,
     openai_api_key: str | None = None,
     openai_organization: str | None = None,
+    fal_api_key: str | None = None,
 ) -> ImageGenerator:
     resolved_provider = resolve_provider(provider)
 
@@ -50,6 +51,14 @@ def build_image_generator(
                 api_version=azure_api_version,
                 force_api_key=force_azure_api_key,
             ),
+        )
+
+    if resolved_provider == "fal":
+        resolved_model = fal_client.resolve_model(model)
+        return ImageGenerator(
+            provider="fal",
+            model=resolved_model,
+            client=fal_client.build_client(api_key=fal_api_key),
         )
 
     if resolved_provider == "openai":
@@ -78,6 +87,16 @@ def generate_image_bytes(
         return azure_client.generate_image_bytes(
             generator.client,
             deployment=generator.model,
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n,
+        )
+
+    if generator.provider == "fal":
+        return fal_client.generate_image_bytes(
+            generator.client,
+            model=generator.model,
             prompt=prompt,
             size=size,
             quality=quality,

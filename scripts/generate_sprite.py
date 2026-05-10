@@ -127,6 +127,7 @@ def parse_args():
     p.add_argument("--api-key", dest="api_key", help="Azure API key auth")
     p.add_argument("--openai-api-key", dest="openai_api_key", help="OpenAI API key override")
     p.add_argument("--openai-org", dest="openai_org", help="OpenAI organization override")
+    p.add_argument("--fal-api-key", dest="fal_api_key", help="fal.ai API key (overrides FAL_KEY env)")
     p.add_argument("--endpoint", help="Azure endpoint override")
     p.add_argument("--api-version", dest="api_version", help="Azure API version override")
     p.add_argument(
@@ -179,6 +180,7 @@ def main():
         force_azure_api_key=bool(args.api_key),
         openai_api_key=args.openai_api_key,
         openai_organization=args.openai_org,
+        fal_api_key=args.fal_api_key,
     )
 
     base_output = Path(args.output).expanduser().resolve()

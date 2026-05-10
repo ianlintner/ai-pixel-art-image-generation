@@ -10,6 +10,7 @@ dependencies = [
     "openai>=1.0",
     "azure-identity>=1.15",
     "google-genai>=0.3",
+    "fal-client>=0.5",
     "pillow>=10.0",
     "rembg>=2.0",
     "onnxruntime>=1.17",

@@ -1,6 +1,6 @@
 ---
 name: ai-pixel-art-image-generation
-description: This skill should be used when the user wants to generate images via OpenAI or Azure AI Foundry OR wants to create pixel-art sprites, tileset sheets, walk-cycle animations, tile maps, or other game graphic assets for 2D games. Triggers on "generate image", "create image", "make picture", "draw", "illustrate", and also on "pixel art sprite", "tileset", "spritesheet", "tiled map", "walk cycle", "generate tiles for my game". Handles Azure auth (CLI → DefaultAzureCredential → API key), Gemini 2.5 Flash Image auth (API key) for frame-consistent animation, pixel-art post-processing (nearest-neighbor + palette quantize + optional rembg), and Tiled-compatible TSX/TMJ export.
+description: This skill should be used when the user wants to generate images via OpenAI, Azure AI Foundry, or fal.ai OR wants to create pixel-art sprites, tileset sheets, walk-cycle animations, tile maps, or other game graphic assets for 2D games. Triggers on "generate image", "create image", "make picture", "draw", "illustrate", and also on "pixel art sprite", "tileset", "spritesheet", "tiled map", "walk cycle", "generate tiles for my game". Handles Azure auth (CLI → DefaultAzureCredential → API key), Gemini 2.5 Flash Image auth (API key) for frame-consistent animation, fal.ai auth (API key) for Flux/Stable Diffusion models, pixel-art post-processing (nearest-neighbor + palette quantize + optional rembg), and Tiled-compatible TSX/TMJ export.
 ---
 
 # AI Pixel Art & Tile Map Generator
@@ -9,32 +9,66 @@ description: This skill should be used when the user wants to generate images vi
 
 Generate images via OpenAI/Azure AI Foundry and, via an integrated pixel-art pipeline, produce Tiled-compatible pixel-art sprites, tileset sheets, and short sprite-sheet animations for 2D games. The skill covers two user paths:
 
-1. **General image generation** — text-to-image via `gpt-image-2` on OpenAI/Azure.
-2. **Pixel-art game-asset mode** — OpenAI/Azure generation + nearest-neighbor downscale + palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for Tiled.
+1. **General image generation** — text-to-image via `gpt-image-2` (OpenAI/Azure) or Flux/Stable Diffusion (fal.ai).
+2. **Pixel-art game-asset mode** — generation + nearest-neighbor downscale + palette quantize + (for animations) Gemini 2.5 Flash Image reference-based frame consistency + TSX/TMJ export for Tiled.
 
-Direct OpenAI uses `OPENAI_API_KEY`. Azure uses `AZURE_OPENAI_ENDPOINT` (or `--endpoint`) plus Azure CLI, `DefaultAzureCredential`, or `AZURE_OPENAI_API_KEY`. Provider selection is `auto`: Azure is used when `AZURE_OPENAI_ENDPOINT` is set, otherwise direct OpenAI is used.
+Direct OpenAI uses `OPENAI_API_KEY`. Azure uses `AZURE_OPENAI_ENDPOINT` (or `--endpoint`) plus Azure CLI, `DefaultAzureCredential`, or `AZURE_OPENAI_API_KEY`. fal.ai uses `FAL_KEY` (or `--fal-api-key`). Provider selection is `auto`: Azure is used when `AZURE_OPENAI_ENDPOINT` is set, otherwise direct OpenAI is used. Pass `--provider fal` explicitly to use fal.ai.
 
 ## When to Use Which Script
 
-| Script                         | Use when user wants...                                     |
-|--------------------------------|------------------------------------------------------------|
-| `scripts/generate_image.py`    | A general-purpose image (any subject, fixed or flexible `gpt-image-2` size). |
-| `scripts/generate_sprite.py`   | A single pixel-art sprite (16/32/64 px) with a named palette. |
-| `scripts/generate_tileset.py`  | N unique tiles packed into a sheet + TSX + TMJ for Tiled.  |
-| `scripts/generate_animation.py`| 2–8 frame sprite-sheet animation (walk/idle) + TSX with `<animation>`. |
-| `scripts/pixelize.py`          | Post-process an existing image into pixel art (no generation). |
-| `scripts/qa_report.py`         | Standalone QA metrics on an existing pixel-art PNG.        |
+| Script                          | Use when user wants...                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `scripts/generate_image.py`     | A general-purpose image (any subject, fixed or flexible `gpt-image-2` size). |
+| `scripts/generate_sprite.py`    | A single pixel-art sprite (16/32/64 px) with a named palette.                |
+| `scripts/generate_tileset.py`   | N unique tiles packed into a sheet + TSX + TMJ for Tiled.                    |
+| `scripts/generate_animation.py` | 2–8 frame sprite-sheet animation (walk/idle) + TSX with `<animation>`.       |
+| `scripts/pixelize.py`           | Post-process an existing image into pixel art (no generation).               |
+| `scripts/qa_report.py`          | Standalone QA metrics on an existing pixel-art PNG.                          |
 
 All scripts are invokable directly via `python3` and print their output paths on completion.
 
 ## Available Image Models
 
-| Model                | Provider         | Use case                           |
-|----------------------|------------------|------------------------------------|
-| `gpt-image-2`        | OpenAI/Azure     | **Default** — highest quality      |
-| `gpt-image-1`        | OpenAI/Azure     | Older generation compatibility     |
-| `gpt-image-1-mini`   | OpenAI/Azure     | Faster/cheaper drafts              |
-| `sora-2`             | OpenAI/Azure     | Video (not images)                 |
+### OpenAI / Azure
+
+| Model              | Provider     | Use case                       |
+| ------------------ | ------------ | ------------------------------ |
+| `gpt-image-2`      | OpenAI/Azure | **Default** — highest quality  |
+| `gpt-image-1`      | OpenAI/Azure | Older generation compatibility |
+| `gpt-image-1-mini` | OpenAI/Azure | Faster/cheaper drafts          |
+| `sora-2`           | OpenAI/Azure | Video (not images)             |
+
+### fal.ai — Text-to-Image
+
+| Model                                 | Best for                                                          |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `fal-ai/recraft/v3/text-to-image`     | **Pixel art tiles & sprites** — SOTA vector art, consistent style |
+| `fal-ai/flux/dev`                     | General purpose, high quality (default)                           |
+| `fal-ai/flux/schnell`                 | Fast iteration, 4-step distilled, cheap batch tiles               |
+| `fal-ai/nano-banana-pro`              | Google's latest — excellent realism + editing combo               |
+| `fal-ai/qwen-image`                   | Complex text rendering (UI/HUD elements)                          |
+| `fal-ai/flux-pro/v1.1-ultra`          | Maximum quality, best composition                                 |
+| `fal-ai/recraft/v4/pro/text-to-image` | Production-ready, refined lighting & materials                    |
+| `fal-ai/seedream/v4.5/edit`           | ByteDance unified generation + editing                            |
+
+### fal.ai — Image-to-Image (Sprite Editing)
+
+| Model                         | Best for                                            |
+| ----------------------------- | --------------------------------------------------- |
+| `fal-ai/nano-banana-pro/edit` | **Best editor** — refine generated sprites, restyle |
+| `fal-ai/flux-pro/kontext`     | Reference image + text → targeted local edits       |
+| `fal-ai/reve/edit`            | Simple image-to-image transform via text prompt     |
+| `fal-ai/bria/fibo-edit/edit`  | JSON + Mask + Image precise editing                 |
+
+### fal.ai — Utility Tools
+
+| Model                                      | Tool              | Use case                                      |
+| ------------------------------------------ | ----------------- | --------------------------------------------- |
+| `fal-ai/bria/background/remove`            | `bg-remove-bria`  | **Best BG removal** — commercially safe       |
+| `fal-ai/seedvr/upscale/image`              | `upscale-seedvr`  | SeedVR2 upscale — $0.001/megapixel            |
+| `fal-ai/topaz/upscale/image`               | `upscale-topaz`   | Professional-grade upscale (highest fidelity) |
+| `fal-ai/ffmpeg-api/images-to-video`        | `images-to-video` | **Animation export** — stitch frames → MP4    |
+| `fal-ai/kling-video/v3/pro/image-to-video` | `image-to-video`  | Animate a still sprite into video             |
 
 Gemini (separate provider): `gemini-2.5-flash-image` ("Nano Banana") — used for multi-frame animation consistency via reference images.
 
@@ -58,6 +92,7 @@ Install to enable credential auth: `pip install azure-identity`
 - ❌ `https://<resource>.services.ai.azure.com/` — Foundry-native API, not compatible with this skill.
 
 Discover it with:
+
 ```bash
 az cognitiveservices account show --name <resource> --resource-group <rg> \
   --query 'properties.endpoints' -o json
@@ -80,6 +115,7 @@ az rest --method put \
 ```
 
 Check what's deployable in your region first:
+
 ```bash
 az cognitiveservices model list --location <region> \
   --query "[?kind=='OpenAI' && starts_with(model.name,'gpt-image')].{name:model.name,version:model.version}" -o table
@@ -91,26 +127,83 @@ az cognitiveservices model list --location <region> \
 
 API key via `GEMINI_API_KEY` env var (or `--gemini-api-key`). Google has no usable Entra equivalent for this endpoint.
 
+### fal.ai
+
+API key via `FAL_KEY` env var (or `--fal-api-key`). Get a key at https://fal.ai/dashboard/keys.
+
+```bash
+export FAL_KEY="your-key-here"
+# or pass per-command:
+python3 scripts/generate_image.py --provider fal --fal-api-key "..." --prompt "..." --output ~/img.png
+```
+
+**Default model.** `fal-ai/flux/dev` is the default. Override with `--model` or `--deployment`, or set `FAL_MODEL` in the environment.
+
+**Quality mapping.** When using `fal-ai/flux/dev` (default):
+
+- `--quality low` or `--quality medium` → switches to `fal-ai/flux/schnell` (faster, 4-step distilled)
+- `--quality high` → stays on `fal-ai/flux/dev` (best quality)
+
+**Size mapping.** fal.ai uses named presets. Standard sizes (`1024x1024`, `1024x768`, etc.) are mapped automatically. Unrecognized sizes fall back to `square_hd` (1024×1024).
+
+### fal.ai Utility Tools
+
+The `scripts/lib/fal_tools.py` module provides fal-hosted utilities as cloud alternatives to local libraries. Import and use directly:
+
+```python
+from lib.fal_tools import remove_background_bria, upscale_seedvr, images_to_video
+
+# Background removal (Bria RMBG 2.0 — commercially safe)
+no_bg = remove_background_bria(sprite_bytes)
+
+# Upscale before pixelize downscale (SeedVR2 — $0.001/megapixel)
+hi_res = upscale_seedvr(sprite_bytes, scale=2)
+
+# Stitch walk-cycle frames into MP4 animation
+video = images_to_video([frame0, frame1, frame2, frame3], fps=8, hold_frames=15)
+
+# Animate a still sprite into video (Kling 3.0 Pro)
+animated = image_to_video(sprite_bytes, prompt="idle breathing animation")
+```
+
+Or use the dispatcher:
+
+```python
+from lib.fal_tools import run_tool
+result = run_tool("bg-remove-bria", image_bytes)
+result = run_tool("upscale-seedvr", image_bytes, scale=2)
+video = run_tool("images-to-video", [frame0, frame1, frame2, frame3])
+```
+
 ## Dependencies
 
 ```bash
-pip install openai azure-identity google-genai pillow rembg onnxruntime
+pip install openai azure-identity google-genai fal-client pillow rembg onnxruntime
 ```
 
 - `openai`, `azure-identity` → direct OpenAI, Azure auth, and image generation.
 - `google-genai` → Gemini reference-image generation (required for `generate_animation.py`).
+- `fal-client` → fal.ai image generation (Flux, Stable Diffusion, etc.) and utility tools (background removal, upscaling).
 - `pillow` → post-processing pipeline.
-- `rembg` + `onnxruntime` → optional background removal (needed only when `--transparent-bg` is passed; pulls ~100 MB of ONNX runtime).
+- `rembg` + `onnxruntime` → optional local background removal (needed only when `--transparent-bg` is passed; pulls ~100 MB of ONNX runtime).
 
 ## Workflows
 
 ### 1. General image generation
 
 ```bash
-python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/generate_image.py \
+# OpenAI (default)
+python3 scripts/generate_image.py \
   --prompt "a cat on mars, photorealistic" \
   --size 1024x1024 --quality medium \
   --output ~/cat.png
+
+# fal.ai with Flux
+python3 scripts/generate_image.py \
+  --provider fal --model fal-ai/flux/dev \
+  --prompt "a cat on mars, photorealistic" \
+  --size 1024x1024 --quality high \
+  --output ~/cat_fal.png
 ```
 
 Common sizes: `1024x1024`, `1536x1024`, `1024x1536`, `2048x2048`, `2048x1152`, `3840x2160`, `2160x3840`, `auto`. Custom `gpt-image-2` sizes are accepted when they satisfy the model constraints. Qualities: `low`, `medium`, `high`.
@@ -206,32 +299,32 @@ See `references/palettes.md`. Available: `gameboy` (4), `pico8` (16), `db16` (16
 
 When `--palette auto` is passed, `lib/palettes.suggest_palette` scans the prompt against a keyword table and picks a palette whose colour range matches the subject. Explicit `--palette <name>` always wins. The chosen palette and matched keyword are logged to stderr.
 
-| Keyword pattern                                                                 | Palette   | Why                                             |
-|---------------------------------------------------------------------------------|-----------|-------------------------------------------------|
-| `metal\|steel\|armor\|stone\|grey\|gray\|silver\|iron\|dungeon\|rock\|brick`    | `db32`    | Mid-greys present; avoids "stone on pico8" fail |
-| `tropical\|beach\|coral\|jungle\|aquatic\|underwater\|reef`                     | `aap64`   | Wide warm/cool range for saturated scenes       |
-| `gameboy\|monochrome\|green only`                                               | `gameboy` | 4-shade monochrome                              |
-| `arcade\|nes\|8-bit\|8bit`                                                      | `nes`     | Canonical NES palette                           |
-| `knight\|fantasy\|rpg\|character\|hero\|warrior\|wizard\|mage`                  | `db16`    | DB16 is the canonical RPG-character palette     |
-| `terrain\|tile\|overworld\|map\|landscape\|biome`                               | `db32`    | Covers earth/foliage/water tones                |
-| `detailed\|portrait\|hi-detail\|high-detail`                                    | `aap64`   | 64 colours support subtle shading               |
-| (no match)                                                                      | `db32`    | Default safe choice                             |
+| Keyword pattern                                                              | Palette   | Why                                             |
+| ---------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
+| `metal\|steel\|armor\|stone\|grey\|gray\|silver\|iron\|dungeon\|rock\|brick` | `db32`    | Mid-greys present; avoids "stone on pico8" fail |
+| `tropical\|beach\|coral\|jungle\|aquatic\|underwater\|reef`                  | `aap64`   | Wide warm/cool range for saturated scenes       |
+| `gameboy\|monochrome\|green only`                                            | `gameboy` | 4-shade monochrome                              |
+| `arcade\|nes\|8-bit\|8bit`                                                   | `nes`     | Canonical NES palette                           |
+| `knight\|fantasy\|rpg\|character\|hero\|warrior\|wizard\|mage`               | `db16`    | DB16 is the canonical RPG-character palette     |
+| `terrain\|tile\|overworld\|map\|landscape\|biome`                            | `db32`    | Covers earth/foliage/water tones                |
+| `detailed\|portrait\|hi-detail\|high-detail`                                 | `aap64`   | 64 colours support subtle shading               |
+| (no match)                                                                   | `db32`    | Default safe choice                             |
 
 ## QA metrics and hard gates
 
 When `--qa` is passed to any generator, or via `scripts/qa_report.py <input>`, `lib/qa_metrics` computes the following and writes a `<artifact>.qa.json` sidecar:
 
-| Metric                  | Scope        | Threshold                        | Gate     |
-|-------------------------|--------------|----------------------------------|----------|
-| `palette_fidelity`      | all          | == 1.0                           | **hard** |
-| `alpha_crispness`       | all          | ≥ 0.999                          | **hard** |
-| `tile_seam_diff_mean`   | tileset      | ≤ 12.0 (L2 0–255, per-tile mean) | **hard** |
-| `silhouette_iou_f0_f2`  | animation    | ≥ 0.85                           | **hard** |
-| `bbox_drift_x`          | animation    | ≤ 6 px (walk-cycle leg extension) | **hard** |
-| `bbox_drift_y`          | animation    | ≤ 3 px (1–2 px bob allowed)      | **hard** |
-| `baseline_alignment`    | sprite       | ≥ 3 contiguous opaque in lowest row | **hard** |
-| `outline_coverage`      | sprite       | ≥ 0.85                           | soft     |
-| `palette_coverage`      | sprite       | 0.15 ≤ x ≤ 0.60                  | soft     |
+| Metric                 | Scope     | Threshold                           | Gate     |
+| ---------------------- | --------- | ----------------------------------- | -------- |
+| `palette_fidelity`     | all       | == 1.0                              | **hard** |
+| `alpha_crispness`      | all       | ≥ 0.999                             | **hard** |
+| `tile_seam_diff_mean`  | tileset   | ≤ 12.0 (L2 0–255, per-tile mean)    | **hard** |
+| `silhouette_iou_f0_f2` | animation | ≥ 0.85                              | **hard** |
+| `bbox_drift_x`         | animation | ≤ 6 px (walk-cycle leg extension)   | **hard** |
+| `bbox_drift_y`         | animation | ≤ 3 px (1–2 px bob allowed)         | **hard** |
+| `baseline_alignment`   | sprite    | ≥ 3 contiguous opaque in lowest row | **hard** |
+| `outline_coverage`     | sprite    | ≥ 0.85                              | soft     |
+| `palette_coverage`     | sprite    | 0.15 ≤ x ≤ 0.60                     | soft     |
 
 Hard failures cause non-zero exit. Standalone re-run:
 
@@ -244,7 +337,7 @@ python3 ~/.claude/skills/ai-pixel-art-image-generation/scripts/qa_report.py \
 ## Troubleshooting
 
 - **Azure 401** — CLI token expired (`az login`) or wrong API key.
-- **Azure 404 `DeploymentNotFound`** — Deployment name mismatch; verify with `az cognitiveservices account deployment list -n <resource> -g <rg>`. If the model *exists* in the region but isn't deployed yet, create the deployment (see "Deploying a model on Azure" above).
+- **Azure 404 `DeploymentNotFound`** — Deployment name mismatch; verify with `az cognitiveservices account deployment list -n <resource> -g <rg>`. If the model _exists_ in the region but isn't deployed yet, create the deployment (see "Deploying a model on Azure" above).
 - **Azure 404 from AI Services endpoint** — you're pointing at `https://<resource>.services.ai.azure.com/` instead of `https://<resource>.openai.azure.com/`. The skill's client needs the legacy OpenAI endpoint.
 - **Azure 429** — deployment rate limit hit; default rate on fresh GlobalStandard image deployments is ~1 req/60s at capacity 1. Bump capacity via the same `az rest` deploy command (PATCH with higher `sku.capacity`) or wait between generations.
 - **Azure `api-version` error on `deployment create`** — the CLI extension pins `2025-09-01` which Azure rejects and ignores `--api-version`. Use the `az rest` workaround in "Deploying a model on Azure".
@@ -272,13 +365,13 @@ Lessons from real runs — read before kicking off a batch.
 
 ### Quality vs size
 
-| Goal                    | Recommended combo                                         |
-|-------------------------|-----------------------------------------------------------|
-| Final 32×32 sprite      | `--size 32 --quality medium`, rely on `--outline palette-darkest` |
-| Final 64×64 sprite      | `--size 64 --quality medium` or `high`                    |
-| Tileset (32-px tiles)   | `--tile-size 32 --quality medium` + `--seamless auto`     |
+| Goal                    | Recommended combo                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| Final 32×32 sprite      | `--size 32 --quality medium`, rely on `--outline palette-darkest`                     |
+| Final 64×64 sprite      | `--size 64 --quality medium` or `high`                                                |
+| Tileset (32-px tiles)   | `--tile-size 32 --quality medium` + `--seamless auto`                                 |
 | Walk cycle              | `--tile-size 32 --quality medium` — frame 0 dictates everything; invest quality there |
-| Iteration / A-B prompts | `--size 32 --quality low --deployment gpt-image-1-mini`   |
+| Iteration / A-B prompts | `--size 32 --quality low --deployment gpt-image-1-mini`                               |
 
 `--quality low` at 32 px is fine for shape testing but will soft-fail outline/coverage QA. Don't chase hard gates at `low`.
 
@@ -293,7 +386,7 @@ Lessons from real runs — read before kicking off a batch.
 
 - Frame 0 is generated by `gpt-image-2` / Azure. Frames 1..N are Gemini with frame 0 as reference. Spend your prompt-engineering budget on frame 0.
 - `walk` with 4 frames is the sweet spot. 2 frames looks janky; 8 frames rarely improves perceived motion and 4× the Gemini cost.
-- `--transparent-bg` uses a *shared* bbox across all frames — do not post-process frames individually or they will jitter.
+- `--transparent-bg` uses a _shared_ bbox across all frames — do not post-process frames individually or they will jitter.
 - Expect to reroll ~1-in-4 animations. Budget for it.
 
 ### Cost / rate
